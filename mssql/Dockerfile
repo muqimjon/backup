@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
         wget \
         zip \
+        unzip \
         ca-certificates \
         gnupg \
         apt-transport-https \

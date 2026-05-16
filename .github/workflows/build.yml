@@ -1,26 +1,63 @@
 name: Build & Push
 
 on:
-  workflow_dispatch:           # faqat qo'lda ishga tushiriladi
+  push:
+    branches: [main]
+  workflow_dispatch:
     inputs:
       variant:
-        description: "Qaysi imageni build qilish kerak?"
+        description: "Variant (postgres|mysql|mssql|minio|postgres-minio)"
         required: true
-        type: choice
-        options:
-          - postgres
-          - mysql
-          - mssql
-          - minio
-          - postgres-minio
-          - all
+        type: string
+      version:
+        description: "Version (masalan: 0.0.1)"
+        required: true
+        type: string
 
 env:
   IMAGE: muqimjon/backup
 
 jobs:
-  build:
+
+  # ── 1. Gate: pattern tekshirish ─────────────────────────────────────────────
+  # Pattern topilmasa — bu job 5 sekundda tugaydi, build job umuman boshlamaydi
+  gate:
     runs-on: ubuntu-latest
+    outputs:
+      variant: ${{ steps.parse.outputs.variant }}
+      version: ${{ steps.parse.outputs.version }}
+      found:   ${{ steps.parse.outputs.found }}
+
+    steps:
+      - name: Parse trigger
+        id: parse
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "variant=${{ inputs.variant }}" >> $GITHUB_OUTPUT
+            echo "version=${{ inputs.version }}"  >> $GITHUB_OUTPUT
+            echo "found=true"                      >> $GITHUB_OUTPUT
+            echo "✅ Manual trigger: ${{ inputs.variant }}:${{ inputs.version }}"
+          else
+            MSG="${{ github.event.head_commit.message }}"
+            echo "Commit: $MSG"
+
+            if [[ "$MSG" =~ (postgres-minio|postgres|mysql|mssql|minio):([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+              echo "variant=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+              echo "version=${BASH_REMATCH[2]}" >> $GITHUB_OUTPUT
+              echo "found=true"                  >> $GITHUB_OUTPUT
+              echo "✅ Detected: ${BASH_REMATCH[1]}:${BASH_REMATCH[2]}"
+            else
+              echo "found=false" >> $GITHUB_OUTPUT
+              echo "⏭️ No 'variant:X.Y.Z' pattern — skipping build"
+            fi
+          fi
+
+  # ── 2. Build: faqat gate topsa ishlaydi ─────────────────────────────────────
+  build:
+    needs: gate
+    if: needs.gate.outputs.found == 'true'
+    runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -32,51 +69,69 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build postgres
-        if: inputs.variant == 'postgres' || inputs.variant == 'all'
+        if: needs.gate.outputs.variant == 'postgres'
         uses: docker/build-push-action@v5
         with:
           context:   .
           file:      postgres/Dockerfile
           push:      true
           platforms: linux/amd64,linux/arm64
-          tags:      ${{ env.IMAGE }}:postgres
+          tags: |
+            ${{ env.IMAGE }}:postgres
+            ${{ env.IMAGE }}:postgres-${{ needs.gate.outputs.version }}
 
       - name: Build mysql
-        if: inputs.variant == 'mysql' || inputs.variant == 'all'
+        if: needs.gate.outputs.variant == 'mysql'
         uses: docker/build-push-action@v5
         with:
           context:   .
           file:      mysql/Dockerfile
           push:      true
           platforms: linux/amd64,linux/arm64
-          tags:      ${{ env.IMAGE }}:mysql
+          tags: |
+            ${{ env.IMAGE }}:mysql
+            ${{ env.IMAGE }}:mysql-${{ needs.gate.outputs.version }}
 
       - name: Build mssql
-        if: inputs.variant == 'mssql' || inputs.variant == 'all'
+        if: needs.gate.outputs.variant == 'mssql'
         uses: docker/build-push-action@v5
         with:
           context:   .
           file:      mssql/Dockerfile
           push:      true
-          platforms: linux/amd64        # mssql-tools faqat amd64
-          tags:      ${{ env.IMAGE }}:mssql
+          platforms: linux/amd64
+          tags: |
+            ${{ env.IMAGE }}:mssql
+            ${{ env.IMAGE }}:mssql-${{ needs.gate.outputs.version }}
 
       - name: Build minio
-        if: inputs.variant == 'minio' || inputs.variant == 'all'
+        if: needs.gate.outputs.variant == 'minio'
         uses: docker/build-push-action@v5
         with:
           context:   .
           file:      minio/Dockerfile
           push:      true
           platforms: linux/amd64,linux/arm64
-          tags:      ${{ env.IMAGE }}:minio
+          tags: |
+            ${{ env.IMAGE }}:minio
+            ${{ env.IMAGE }}:minio-${{ needs.gate.outputs.version }}
 
       - name: Build postgres-minio
-        if: inputs.variant == 'postgres-minio' || inputs.variant == 'all'
+        if: needs.gate.outputs.variant == 'postgres-minio'
         uses: docker/build-push-action@v5
         with:
           context:   .
           file:      postgres-minio/Dockerfile
           push:      true
           platforms: linux/amd64,linux/arm64
-          tags:      ${{ env.IMAGE }}:postgres-minio
+          tags: |
+            ${{ env.IMAGE }}:postgres-minio
+            ${{ env.IMAGE }}:postgres-minio-${{ needs.gate.outputs.version }}
+
+      - name: Update Docker Hub description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: muqimjon/backup
+          readme-filepath: ./README.md
