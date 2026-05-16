@@ -1,0 +1,82 @@
+name: Build & Push
+
+on:
+  workflow_dispatch:           # faqat qo'lda ishga tushiriladi
+    inputs:
+      variant:
+        description: "Qaysi imageni build qilish kerak?"
+        required: true
+        type: choice
+        options:
+          - postgres
+          - mysql
+          - mssql
+          - minio
+          - postgres-minio
+          - all
+
+env:
+  IMAGE: muqimjon/backup
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build postgres
+        if: inputs.variant == 'postgres' || inputs.variant == 'all'
+        uses: docker/build-push-action@v5
+        with:
+          context:   .
+          file:      postgres/Dockerfile
+          push:      true
+          platforms: linux/amd64,linux/arm64
+          tags:      ${{ env.IMAGE }}:postgres
+
+      - name: Build mysql
+        if: inputs.variant == 'mysql' || inputs.variant == 'all'
+        uses: docker/build-push-action@v5
+        with:
+          context:   .
+          file:      mysql/Dockerfile
+          push:      true
+          platforms: linux/amd64,linux/arm64
+          tags:      ${{ env.IMAGE }}:mysql
+
+      - name: Build mssql
+        if: inputs.variant == 'mssql' || inputs.variant == 'all'
+        uses: docker/build-push-action@v5
+        with:
+          context:   .
+          file:      mssql/Dockerfile
+          push:      true
+          platforms: linux/amd64        # mssql-tools faqat amd64
+          tags:      ${{ env.IMAGE }}:mssql
+
+      - name: Build minio
+        if: inputs.variant == 'minio' || inputs.variant == 'all'
+        uses: docker/build-push-action@v5
+        with:
+          context:   .
+          file:      minio/Dockerfile
+          push:      true
+          platforms: linux/amd64,linux/arm64
+          tags:      ${{ env.IMAGE }}:minio
+
+      - name: Build postgres-minio
+        if: inputs.variant == 'postgres-minio' || inputs.variant == 'all'
+        uses: docker/build-push-action@v5
+        with:
+          context:   .
+          file:      postgres-minio/Dockerfile
+          push:      true
+          platforms: linux/amd64,linux/arm64
+          tags:      ${{ env.IMAGE }}:postgres-minio

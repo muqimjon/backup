@@ -1,0 +1,138 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# docker-compose.example.yml
+#
+# Three examples are shown below:
+#   1. postgres  — minimal
+#   2. postgres  — full (all optional params)
+#   3. postgres-minio — combined backup
+#
+# Copy the relevant section into your own docker-compose.yml and adjust values.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+# EXAMPLE 1 — PostgreSQL backup, minimal config
+# ══════════════════════════════════════════════════════════════════════════════
+services:
+
+  backup:
+    image: muqimjon/backup:postgres
+    restart: always
+    environment:
+      # ── Database ────────────────────────────────
+      PG_HOST: postgres
+      PG_USER: myuser
+      PG_PASSWORD: mypassword
+      PG_DATABASE: mydb
+
+      # ── Destination (rclone) ────────────────────
+      RCLONE_REMOTE: gdrive          # rclone remote name
+      RCLONE_PATH: backups/myapp     # path inside the remote
+
+    volumes:
+      - ./data/backup:/backup
+      - ./rclone.conf:/etc/rclone/rclone.conf:ro
+
+    depends_on:
+      - postgres
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# EXAMPLE 2 — PostgreSQL backup, all options
+# ══════════════════════════════════════════════════════════════════════════════
+
+  backup-full:
+    image: muqimjon/backup:postgres
+    restart: always
+    environment:
+      # ── Project ─────────────────────────────────
+      PROJECT_NAME: myapp            # prefix in backup filenames
+      TZ: Asia/Tashkent
+
+      # ── Database ────────────────────────────────
+      PG_HOST: postgres
+      PG_PORT: 5432                  # default: 5432
+      PG_USER: myuser
+      PG_PASSWORD: mypassword
+      PG_DATABASE: mydb
+
+      # ── Schedules (cron syntax) ──────────────────
+      BACKUP_SCHEDULE: "0 2 * * *"  # daily at 02:00  (default)
+      UPLOAD_SCHEDULE:  "0 */6 * * *" # retry upload every 6 h (optional)
+      CLEANUP_SCHEDULE: "0 7 * * *" # cleanup daily at 07:00  (optional)
+      # If UPLOAD_SCHEDULE is empty → upload runs right after each backup.
+      # If CLEANUP_SCHEDULE is empty → cleanup runs right after each upload.
+
+      # ── Local retention ─────────────────────────
+      MIN_LOCAL_BACKUPS: 2           # keep at least N files locally
+      MAX_LOCAL_BACKUPS: 5           # never exceed N files locally
+
+      # ── Remote retention ────────────────────────
+      MAX_REMOTE_BACKUPS: 30         # max files kept in cloud storage
+
+      # ── Compression & encryption ────────────────
+      COMPRESSION_LEVEL: 6          # zip level 1-9 (default: 6)
+      BACKUP_PASSWORD: "str0ngP@ss" # optional AES-256 zip encryption
+
+      # ── Rclone destination ──────────────────────
+      RCLONE_REMOTE: gdrive
+      RCLONE_PATH: backups/myapp
+      RCLONE_CONFIG: /etc/rclone/rclone.conf
+
+      # Alternative: paste rclone config directly as env var
+      # RCLONE_CONFIG_CONTENT: |
+      #   [gdrive]
+      #   type = drive
+      #   ...
+
+    volumes:
+      - ./data/backup:/backup
+      - ./rclone.conf:/etc/rclone/rclone.conf:ro
+
+    depends_on:
+      - postgres
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# EXAMPLE 3 — PostgreSQL + MinIO combined backup
+# ══════════════════════════════════════════════════════════════════════════════
+
+  backup-combined:
+    image: muqimjon/backup:postgres-minio
+    restart: always
+    environment:
+      PROJECT_NAME: myapp
+      TZ: Asia/Tashkent
+
+      # ── PostgreSQL ──────────────────────────────
+      PG_HOST: postgres
+      PG_USER: myuser
+      PG_PASSWORD: mypassword
+      PG_DATABASE: mydb
+
+      # ── MinIO (or any S3-compatible storage) ────
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: uploads
+      # MINIO_API: S3v4               # default: S3v4
+
+      # ── Schedules ───────────────────────────────
+      BACKUP_SCHEDULE: "0 3 * * *"
+      UPLOAD_SCHEDULE: "0 */4 * * *"
+
+      # ── Retention ───────────────────────────────
+      MIN_LOCAL_BACKUPS: 2
+      MAX_LOCAL_BACKUPS: 6           # 3 per source × 2 sources
+      MAX_REMOTE_BACKUPS: 60         # 30 per source × 2 sources
+
+      # ── Rclone destination ──────────────────────
+      RCLONE_REMOTE: gdrive
+      RCLONE_PATH: backups/myapp
+
+    volumes:
+      - ./data/backup:/backup
+      - ./rclone.conf:/etc/rclone/rclone.conf:ro
+
+    depends_on:
+      - postgres
+      - minio
