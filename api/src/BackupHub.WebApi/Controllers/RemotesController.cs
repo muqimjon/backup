@@ -28,7 +28,7 @@ public sealed class RemotesController(ISender mediator, IGoogleOAuthService goog
     public IActionResult ConnectGoogle([FromQuery] string name, [FromQuery] string path)
     {
         var state = Base64Url(JsonSerializer.Serialize(new ConnectState(name, path)));
-        return Redirect(google.BuildAuthUrl(state, CallbackUri()));
+        return Ok(new { url = google.BuildAuthUrl(state, CallbackUri()) });
     }
 
     [AllowAnonymous]
