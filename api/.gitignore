@@ -1,0 +1,9 @@
+bin/
+obj/
+*.user
+
+# Runtime artifacts (never commit secrets or local state)
+*.db
+*.db-shm
+*.db-wal
+keys/

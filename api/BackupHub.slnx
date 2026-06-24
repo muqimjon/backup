@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BackupHub.Application/BackupHub.Application.csproj" />
+    <Project Path="src/BackupHub.Domain/BackupHub.Domain.csproj" />
+    <Project Path="src/BackupHub.Infrastructure/BackupHub.Infrastructure.csproj" />
+    <Project Path="src/BackupHub.WebApi/BackupHub.WebApi.csproj" />
+  </Folder>
+</Solution>
