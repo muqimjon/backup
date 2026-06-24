@@ -1,19 +1,15 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# backup:postgres-minio
-# Tools: pg_dump  •  mc  •  rclone  •  supercronic
-#
-# Backs up BOTH a PostgreSQL database AND a MinIO bucket in one container.
-# Each source produces its own separate zip file per run.
+# backup:minio
+# Tools: mc (MinIO client)  •  rclone  •  supercronic
+# Also works with any S3-compatible storage (AWS S3, Cloudflare R2, etc.)
 #
 # Build (from repo root):
-#   docker build -f postgres-minio/Dockerfile -t muqimjon/backup:postgres-minio .
-#
+#   docker build -f workers/images/minio/Dockerfile -t muqimjon/backup:minio .
 # ─────────────────────────────────────────────────────────────────────────────
 FROM alpine:latest
 
-ENV BACKUP_DRIVER=postgres-minio
+ENV BACKUP_DRIVER=minio
 
-# System deps + PostgreSQL client (always installs latest stable version)
 RUN apk add --no-cache \
         bash \
         curl \
@@ -22,8 +18,7 @@ RUN apk add --no-cache \
         unzip \
         rclone \
         tzdata \
-        coreutils \
-        postgresql-client
+        coreutils
 
 # MinIO Client (mc)
 RUN wget -q "https://dl.min.io/client/mc/release/linux-amd64/mc" \
@@ -36,7 +31,7 @@ RUN wget -q \
         -O /usr/local/bin/supercronic \
     && chmod +x /usr/local/bin/supercronic
 
-COPY scripts/ /usr/local/bin/
+COPY workers/scripts/ /usr/local/bin/
 RUN chmod +x /usr/local/bin/*.sh \
              /usr/local/bin/drivers/*.sh \
     && mkdir -p /backup

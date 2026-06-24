@@ -1,15 +1,16 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# backup:minio
-# Tools: mc (MinIO client)  •  rclone  •  supercronic
-# Also works with any S3-compatible storage (AWS S3, Cloudflare R2, etc.)
+# backup:postgres
+# Tools: pg_dump  •  rclone  •  supercronic
 #
 # Build (from repo root):
-#   docker build -f minio/Dockerfile -t muqimjon/backup:minio .
+#   docker build -f workers/images/postgres/Dockerfile -t muqimjon/backup:postgres .
+#
 # ─────────────────────────────────────────────────────────────────────────────
 FROM alpine:latest
 
-ENV BACKUP_DRIVER=minio
+ENV BACKUP_DRIVER=postgres
 
+# System deps + PostgreSQL client (always installs latest stable version)
 RUN apk add --no-cache \
         bash \
         curl \
@@ -18,20 +19,18 @@ RUN apk add --no-cache \
         unzip \
         rclone \
         tzdata \
-        coreutils
+        coreutils \
+        postgresql-client
 
-# MinIO Client (mc)
-RUN wget -q "https://dl.min.io/client/mc/release/linux-amd64/mc" \
-        -O /usr/local/bin/mc \
-    && chmod +x /usr/local/bin/mc
-
+# supercronic — container-friendly cron (logs to stdout, inherits env)
 ARG SUPERCRONIC_VERSION=0.2.29
 RUN wget -q \
         "https://github.com/aptible/supercronic/releases/download/v${SUPERCRONIC_VERSION}/supercronic-linux-amd64" \
         -O /usr/local/bin/supercronic \
     && chmod +x /usr/local/bin/supercronic
 
-COPY scripts/ /usr/local/bin/
+# Copy all shared scripts (build context must be repo root)
+COPY workers/scripts/ /usr/local/bin/
 RUN chmod +x /usr/local/bin/*.sh \
              /usr/local/bin/drivers/*.sh \
     && mkdir -p /backup

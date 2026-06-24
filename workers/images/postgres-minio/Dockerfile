@@ -1,15 +1,19 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# backup:mysql
-# Tools: mysqldump  •  rclone  •  supercronic
-# Also works with MariaDB.
+# backup:postgres-minio
+# Tools: pg_dump  •  mc  •  rclone  •  supercronic
+#
+# Backs up BOTH a PostgreSQL database AND a MinIO bucket in one container.
+# Each source produces its own separate zip file per run.
 #
 # Build (from repo root):
-#   docker build -f mysql/Dockerfile -t muqimjon/backup:mysql .
+#   docker build -f workers/images/postgres-minio/Dockerfile -t muqimjon/backup:postgres-minio .
+#
 # ─────────────────────────────────────────────────────────────────────────────
 FROM alpine:latest
 
-ENV BACKUP_DRIVER=mysql
+ENV BACKUP_DRIVER=postgres-minio
 
+# System deps + PostgreSQL client (always installs latest stable version)
 RUN apk add --no-cache \
         bash \
         curl \
@@ -19,7 +23,12 @@ RUN apk add --no-cache \
         rclone \
         tzdata \
         coreutils \
-        mysql-client
+        postgresql-client
+
+# MinIO Client (mc)
+RUN wget -q "https://dl.min.io/client/mc/release/linux-amd64/mc" \
+        -O /usr/local/bin/mc \
+    && chmod +x /usr/local/bin/mc
 
 ARG SUPERCRONIC_VERSION=0.2.29
 RUN wget -q \
@@ -27,7 +36,7 @@ RUN wget -q \
         -O /usr/local/bin/supercronic \
     && chmod +x /usr/local/bin/supercronic
 
-COPY scripts/ /usr/local/bin/
+COPY workers/scripts/ /usr/local/bin/
 RUN chmod +x /usr/local/bin/*.sh \
              /usr/local/bin/drivers/*.sh \
     && mkdir -p /backup

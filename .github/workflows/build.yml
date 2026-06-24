@@ -73,7 +73,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context:   .
-          file:      postgres/Dockerfile
+          file:      workers/images/postgres/Dockerfile
           push:      true
           platforms: linux/amd64,linux/arm64
           tags: |
@@ -85,7 +85,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context:   .
-          file:      mysql/Dockerfile
+          file:      workers/images/mysql/Dockerfile
           push:      true
           platforms: linux/amd64,linux/arm64
           tags: |
@@ -97,7 +97,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context:   .
-          file:      mssql/Dockerfile
+          file:      workers/images/mssql/Dockerfile
           push:      true
           platforms: linux/amd64
           tags: |
@@ -109,7 +109,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context:   .
-          file:      minio/Dockerfile
+          file:      workers/images/minio/Dockerfile
           push:      true
           platforms: linux/amd64,linux/arm64
           tags: |
@@ -121,7 +121,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context:   .
-          file:      postgres-minio/Dockerfile
+          file:      workers/images/postgres-minio/Dockerfile
           push:      true
           platforms: linux/amd64,linux/arm64
           tags: |

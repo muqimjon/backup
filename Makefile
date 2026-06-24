@@ -8,35 +8,35 @@ all: postgres mysql mssql minio postgres-minio
 postgres:
 	docker build \
 		--build-arg SUPERCRONIC_VERSION=$(SC_VERSION) \
-		-f postgres/Dockerfile \
+		-f workers/images/postgres/Dockerfile \
 		-t $(IMAGE):postgres \
 		.
 
 mysql:
 	docker build \
 		--build-arg SUPERCRONIC_VERSION=$(SC_VERSION) \
-		-f mysql/Dockerfile \
+		-f workers/images/mysql/Dockerfile \
 		-t $(IMAGE):mysql \
 		.
 
 mssql:
 	docker build \
 		--build-arg SUPERCRONIC_VERSION=$(SC_VERSION) \
-		-f mssql/Dockerfile \
+		-f workers/images/mssql/Dockerfile \
 		-t $(IMAGE):mssql \
 		.
 
 minio:
 	docker build \
 		--build-arg SUPERCRONIC_VERSION=$(SC_VERSION) \
-		-f minio/Dockerfile \
+		-f workers/images/minio/Dockerfile \
 		-t $(IMAGE):minio \
 		.
 
 postgres-minio:
 	docker build \
 		--build-arg SUPERCRONIC_VERSION=$(SC_VERSION) \
-		-f postgres-minio/Dockerfile \
+		-f workers/images/postgres-minio/Dockerfile \
 		-t $(IMAGE):postgres-minio \
 		.
 

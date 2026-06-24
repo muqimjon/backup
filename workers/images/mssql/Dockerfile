@@ -4,7 +4,7 @@
 # Base : Ubuntu 22.04  (Microsoft's mssql-tools are not available on Alpine)
 #
 # Build (from repo root):
-#   docker build -f mssql/Dockerfile -t muqimjon/backup:mssql .
+#   docker build -f workers/images/mssql/Dockerfile -t muqimjon/backup:mssql .
 #
 # Note: This driver exports data via BCP (CSV per table).
 #       For a full schema+data export, consider mounting sqlpackage separately.
@@ -50,7 +50,7 @@ RUN wget -q \
         -O /usr/local/bin/supercronic \
     && chmod +x /usr/local/bin/supercronic
 
-COPY scripts/ /usr/local/bin/
+COPY workers/scripts/ /usr/local/bin/
 RUN chmod +x /usr/local/bin/*.sh \
              /usr/local/bin/drivers/*.sh \
     && mkdir -p /backup
