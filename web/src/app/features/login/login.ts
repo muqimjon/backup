@@ -49,8 +49,14 @@ export class Login {
     this.error.set(null);
     this.auth.login(this.username(), this.password()).subscribe({
       next: () => this.router.navigate(['/dashboard']),
-      error: () => {
-        this.error.set('Invalid username or password');
+      error: err => {
+        this.error.set(
+          err.status === 0
+            ? 'Cannot reach the server — is the API running on port 5080?'
+            : err.status === 401
+              ? 'Invalid username or password'
+              : (err?.error?.error ?? 'Login failed'),
+        );
         this.loading.set(false);
       },
     });
