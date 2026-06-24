@@ -70,6 +70,7 @@ log "Backup finished"
 log "=========================================="
 
 notify success "Backup created for ${#DRIVERS[@]} source(s): ${DRIVERS[*]}"
+hub_report 0 1 0 "Backup created (${DRIVERS[*]})" || true
 
 # Upload ergashuvchi — o'z scheduli yo'q bo'lsa darhol ishga tushiradi
 # (upload.sh o'zi cleanup ni ham chaqiradi agar cleanup scheduli yo'q bo'lsa)

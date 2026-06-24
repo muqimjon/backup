@@ -11,6 +11,7 @@ error_exit() {
     log "ERROR: $1" >&2
     notify error "$1" || true
     heartbeat /fail || true
+    hub_report "${RUN_TYPE:-0}" 2 0 "$1" || true
     exit "${2:-1}"
 }
 
@@ -111,6 +112,49 @@ send_email() {
 heartbeat() {
     [ -z "${HEARTBEAT_URL:-}" ] && return 0
     curl -fsS --max-time 15 "${HEARTBEAT_URL}${1:-}" >/dev/null 2>&1 || true
+}
+
+# ── BackupHub control-plane integration (all no-ops unless HUB_URL+HUB_TOKEN) ──
+
+hub_enabled() { [ -n "${HUB_URL:-}" ] && [ -n "${HUB_TOKEN:-}" ]; }
+
+# hub_register  →  announce this agent; caches the returned id in .agent_id
+hub_register() {
+    hub_enabled || return 0
+    local host; host=$(hostname 2>/dev/null || echo unknown)
+    local body resp
+    body=$(printf '{"name":"%s","hostname":"%s","project":"%s","drivers":"%s","version":"%s"}' \
+        "$(json_escape "${AGENT_NAME:-$host}")" "$(json_escape "$host")" \
+        "$(json_escape "${PROJECT_NAME:-backup}")" "$(json_escape "${BACKUP_DRIVER:-agent}")" \
+        "${AGENT_VERSION:-0.1.0}")
+    resp=$(curl -fsS --max-time 15 -X POST "${HUB_URL}/api/agents/register" \
+        -H "X-Hub-Token: ${HUB_TOKEN}" -H "Content-Type: application/json" -d "$body" 2>/dev/null) \
+        || { log "Hub: register FAILED"; return 1; }
+    printf '%s' "$resp" | tr -d '"' > "${BACKUP_DIR}/.agent_id"
+    log "Hub: registered as $(cat "${BACKUP_DIR}/.agent_id")"
+}
+
+hub_agent_id() {
+    [ -n "${AGENT_ID:-}" ] && { echo "$AGENT_ID"; return; }
+    [ -f "${BACKUP_DIR}/.agent_id" ] && cat "${BACKUP_DIR}/.agent_id"
+}
+
+# hub_report TYPE STATUS [BYTES] [MESSAGE]
+#   TYPE:   0 backup · 1 upload · 2 cleanup · 3 drill
+#   STATUS: 1 ok · 2 fail
+# Needs JOB_ID in the environment (set by the agent when running a hub job).
+hub_report() {
+    hub_enabled || return 0
+    [ -z "${JOB_ID:-}" ] && return 0
+    local agent_id; agent_id=$(hub_agent_id)
+    [ -z "$agent_id" ] && return 0
+    local now; now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    local body
+    body=$(printf '{"agentId":"%s","jobId":"%s","type":%s,"status":%s,"startedAt":"%s","finishedAt":"%s","bytes":%s,"message":"%s"}' \
+        "$agent_id" "$JOB_ID" "${1:-0}" "${2:-1}" "$now" "$now" "${3:-0}" "$(json_escape "${4:-}")")
+    curl -fsS --max-time 15 -X POST "${HUB_URL}/api/ingest/events" \
+        -H "X-Hub-Token: ${HUB_TOKEN}" -H "Content-Type: application/json" -d "$body" \
+        >/dev/null 2>&1 || log "Hub: report FAILED"
 }
 
 # state_get KEY [DEFAULT]  →  reads a value from the state file

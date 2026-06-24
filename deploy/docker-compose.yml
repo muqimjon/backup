@@ -1,0 +1,47 @@
+services:
+  hub:
+    build:
+      context: ..
+      dockerfile: deploy/hub.Dockerfile
+    image: muqimjon/backuphub:latest
+    container_name: backuphub
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      ConnectionStrings__Default: Data Source=/data/backuphub.db
+      Jwt__Key: ${JWT_KEY}
+      Admin__Username: ${ADMIN_USERNAME:-admin}
+      Admin__Password: ${ADMIN_PASSWORD:-admin}
+      Hub__Token: ${HUB_TOKEN}
+      Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      DataProtection__KeysPath: /data/keys
+    volumes:
+      - ./data:/data
+    networks:
+      - backuphub
+
+  agent:
+    build:
+      context: ..
+      dockerfile: workers/images/agent/Dockerfile
+    image: muqimjon/backuphub-agent:latest
+    container_name: backuphub_agent
+    restart: always
+    depends_on:
+      - hub
+    environment:
+      HUB_URL: http://hub:8080
+      HUB_TOKEN: ${HUB_TOKEN}
+      AGENT_NAME: ${AGENT_NAME:-local-agent}
+      PROJECT_NAME: ${PROJECT_NAME:-backuphub}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - ./agent-data:/backup
+    networks:
+      - backuphub
+
+networks:
+  backuphub:
+    driver: bridge
