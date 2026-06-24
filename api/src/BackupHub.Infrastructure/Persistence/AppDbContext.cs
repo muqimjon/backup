@@ -1,6 +1,7 @@
 using BackupHub.Application.Abstractions;
 using BackupHub.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace BackupHub.Infrastructure.Persistence;
 
@@ -13,6 +14,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<BackupJob> Jobs => Set<BackupJob>();
     public DbSet<BackupRun> Runs => Set<BackupRun>();
     public DbSet<AgentCommand> Commands => Set<AgentCommand>();
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTimeOffset>().HaveConversion<DateTimeOffsetToBinaryConverter>();
+    }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

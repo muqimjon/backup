@@ -22,10 +22,10 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     Drivers = table.Column<string>(type: "TEXT", nullable: false),
                     Version = table.Column<string>(type: "TEXT", nullable: false),
                     TokenHash = table.Column<string>(type: "TEXT", nullable: false),
-                    LastSeenAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    LastSeenAt = table.Column<long>(type: "INTEGER", nullable: true),
                     OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true)
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -40,10 +40,10 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     AgentId = table.Column<Guid>(type: "TEXT", nullable: false),
                     Kind = table.Column<int>(type: "INTEGER", nullable: false),
                     JobId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    AckedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    AckedAt = table.Column<long>(type: "INTEGER", nullable: true),
                     OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true)
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -60,8 +60,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     Path = table.Column<string>(type: "TEXT", nullable: false),
                     ConfigEncrypted = table.Column<string>(type: "TEXT", nullable: false),
                     OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true)
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -81,8 +81,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     SecretEncrypted = table.Column<string>(type: "TEXT", nullable: false),
                     Target = table.Column<string>(type: "TEXT", nullable: false),
                     OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true)
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -98,8 +98,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     PasswordHash = table.Column<string>(type: "TEXT", nullable: false),
                     Role = table.Column<string>(type: "TEXT", nullable: false),
                     OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true)
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -126,8 +126,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     CompressionLevel = table.Column<int>(type: "INTEGER", nullable: false),
                     BackupPasswordEncrypted = table.Column<string>(type: "TEXT", nullable: true),
                     OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true)
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -160,13 +160,13 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     AgentId = table.Column<Guid>(type: "TEXT", nullable: false),
                     Type = table.Column<int>(type: "INTEGER", nullable: false),
                     Status = table.Column<int>(type: "INTEGER", nullable: false),
-                    StartedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    FinishedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    StartedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    FinishedAt = table.Column<long>(type: "INTEGER", nullable: true),
                     Bytes = table.Column<long>(type: "INTEGER", nullable: false),
                     Message = table.Column<string>(type: "TEXT", nullable: true),
                     OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true)
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {

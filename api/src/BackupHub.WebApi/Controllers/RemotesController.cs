@@ -11,7 +11,7 @@ namespace BackupHub.WebApi.Controllers;
 
 public sealed record ConnectState(string Name, string Path);
 
-public sealed class RemotesController(ISender mediator, IGoogleOAuthService google) : ApiController(mediator)
+public sealed class RemotesController(ISender mediator, IGoogleOAuthService google, IConfiguration config) : ApiController(mediator)
 {
     [Authorize]
     [HttpGet]
@@ -27,6 +27,9 @@ public sealed class RemotesController(ISender mediator, IGoogleOAuthService goog
     [HttpGet("google/connect")]
     public IActionResult ConnectGoogle([FromQuery] string name, [FromQuery] string path)
     {
+        if (string.IsNullOrWhiteSpace(config["Google:ClientId"]))
+            return BadRequest(new { error = "Google OAuth is not configured. Set Google:ClientId and Google:ClientSecret in appsettings (see docs)." });
+
         var state = Base64Url(JsonSerializer.Serialize(new ConnectState(name, path)));
         return Ok(new { url = google.BuildAuthUrl(state, CallbackUri()) });
     }

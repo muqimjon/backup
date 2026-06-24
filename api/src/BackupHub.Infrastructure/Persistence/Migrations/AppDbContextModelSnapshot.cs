@@ -23,8 +23,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Drivers")
                         .IsRequired()
@@ -34,8 +34,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("LastSeenAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("LastSeenAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -52,8 +52,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Version")
                         .IsRequired()
@@ -72,14 +72,14 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("AckedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("AckedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid>("AgentId")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid?>("JobId")
                         .HasColumnType("TEXT");
@@ -90,8 +90,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("OwnerId")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -122,8 +122,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     b.Property<int>("CompressionLevel")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("DrillSchedule")
                         .HasColumnType("TEXT");
@@ -153,8 +153,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("SourceId")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("UploadSchedule")
                         .HasColumnType("TEXT");
@@ -182,11 +182,11 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     b.Property<long>("Bytes")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("FinishedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("FinishedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid>("JobId")
                         .HasColumnType("TEXT");
@@ -197,8 +197,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("OwnerId")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("StartedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("StartedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
@@ -206,8 +206,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     b.Property<int>("Type")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -228,8 +228,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -245,8 +245,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     b.Property<int>("Type")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -259,8 +259,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Engine")
                         .HasColumnType("INTEGER");
@@ -287,8 +287,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Username")
                         .IsRequired()
@@ -305,8 +305,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid?>("OwnerId")
                         .HasColumnType("TEXT");
@@ -319,8 +319,8 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Username")
                         .IsRequired()

@@ -21,6 +21,7 @@ import { remoteTypeLabel } from '../../core/format';
         <button class="g" (click)="connectGoogle()" [disabled]="connecting()">
           {{ connecting() ? 'Redirecting…' : 'Connect Google Drive' }}
         </button>
+        @if (gError()) { <div class="err">{{ gError() }}</div> }
       </div>
 
       <div class="card">
@@ -59,7 +60,9 @@ import { remoteTypeLabel } from '../../core/format';
     label { margin-top: 10px; }
     button { margin-top: 16px; }
     button.g { background: #fff; color: #222; }
+    .err { color: var(--fail); margin-top: 12px; font-size: 13px; }
   `,
+
 })
 export class Destinations {
   private api = inject(Api);
@@ -67,6 +70,7 @@ export class Destinations {
   items = signal<RemoteDto[]>([]);
   connecting = signal(false);
   saving = signal(false);
+  gError = signal<string | null>(null);
 
   gName = 'gdrive';
   gPath = 'backups/myapp';
@@ -80,9 +84,13 @@ export class Destinations {
 
   connectGoogle() {
     this.connecting.set(true);
+    this.gError.set(null);
     this.api.googleConnect(this.gName, this.gPath).subscribe({
       next: res => (window.location.href = res.url),
-      error: () => this.connecting.set(false),
+      error: err => {
+        this.connecting.set(false);
+        this.gError.set(err?.error?.error ?? 'Could not start Google connection');
+      },
     });
   }
 
