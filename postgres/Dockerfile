@@ -16,6 +16,7 @@ RUN apk add --no-cache \
         curl \
         wget \
         zip \
+        unzip \
         rclone \
         tzdata \
         coreutils \
@@ -35,4 +36,8 @@ RUN chmod +x /usr/local/bin/*.sh \
     && mkdir -p /backup
 
 VOLUME ["/backup"]
+
+HEALTHCHECK --interval=6h --timeout=20s --start-period=3m --retries=2 \
+    CMD /usr/local/bin/healthcheck.sh || exit 1
+
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

@@ -16,6 +16,10 @@ Dumps your data, compresses it (optionally encrypted), and uploads it to any clo
 | **Local retention** | `MIN_LOCAL_BACKUPS` / `MAX_LOCAL_BACKUPS` |
 | **Remote retention** | `MAX_REMOTE_BACKUPS` — auto-deletes oldest from cloud |
 | **Encryption** | AES-256 zip password via `BACKUP_PASSWORD` |
+| **Integrity check** | every archive is size- and zip-tested before it counts as success |
+| **Alerts** | Telegram / webhook on failure + startup auth check + dead-man's-switch ping |
+| **Health probe** | Docker `HEALTHCHECK` flips unhealthy when backups go stale |
+| **One-command restore** | `restore.sh` for postgres & mysql |
 | **Missed-run recovery** | on container restart, catches up missed backups automatically |
 | **Lightweight** | Alpine-based (~80 MB), Ubuntu only for MSSQL |
 
@@ -152,6 +156,34 @@ services:
 | `RCLONE_CONFIG` | `/etc/rclone/rclone.conf` | Path to rclone config file |
 | `RCLONE_CONFIG_CONTENT` | *(empty)* | Paste config content directly (alternative to file) |
 | `MAX_REMOTE_BACKUPS` | `30` | Maximum files to keep in cloud storage |
+| `MIN_BACKUP_BYTES` | `256` | A fresh archive smaller than this is treated as a failed backup |
+
+### Notifications & monitoring (all images, all optional)
+
+| Variable | Default | Description |
+|---|---|---|
+| `NOTIFY_ON` | `failure` | `failure` = alert only on errors · `always` = also on success · `never` = silent |
+| `NOTIFY_TELEGRAM_TOKEN` | *(empty)* | Telegram bot token (from [@BotFather](https://t.me/BotFather)) |
+| `NOTIFY_TELEGRAM_CHAT_ID` | *(empty)* | Chat/channel ID to send alerts to |
+| `NOTIFY_WEBHOOK_URL` | *(empty)* | Generic endpoint — receives `{level, project, message}` JSON on each alert |
+| `HEARTBEAT_URL` | *(empty)* | Dead-man's-switch ping URL (e.g. [healthchecks.io](https://healthchecks.io)); pinged on success, `<url>/fail` on failure |
+| `SMTP_HOST` | *(empty)* | SMTP server, e.g. `smtp.gmail.com`. Enables email alerts when set with `EMAIL_TO`/`EMAIL_FROM` |
+| `SMTP_PORT` | `587` | `465` = implicit TLS, anything else = STARTTLS |
+| `SMTP_USER` / `SMTP_PASS` | *(empty)* | SMTP login (Gmail: use an [App Password](https://myaccount.google.com/apppasswords)) |
+| `EMAIL_FROM` | *(empty)* | Sender address |
+| `EMAIL_TO` | *(empty)* | Recipient(s) — comma-separated for multiple |
+
+> Telegram **and** email can run together — every channel that's configured fires
+> on each alert. With notifications on you learn about a broken token **the moment
+> it breaks** — including a startup auth check that fires the instant the container
+> can't reach the remote. A Docker `HEALTHCHECK` also turns **unhealthy** when the
+> last backup is older than ~2 schedule intervals.
+
+> **Per-driver retention.** `MIN_LOCAL_BACKUPS` / `MAX_LOCAL_BACKUPS` /
+> `MAX_REMOTE_BACKUPS` are applied **per source**, not over a flat pool. With the
+> combined `postgres-minio` image, "keep 5" means 5 postgres **and** 5 minio
+> archives — kept paired by timestamp, so every retained DB dump has its matching
+> object-storage snapshot.
 
 ### PostgreSQL (`backup:postgres`, `backup:postgres-minio`)
 
@@ -241,9 +273,11 @@ backup/
 ├── scripts/                     # shared across all images
 │   ├── lib.sh                   # shared utilities (log, state_get/set)
 │   ├── entrypoint.sh            # init, missed-task check, cron setup
-│   ├── backup.sh                # orchestrates driver + compression
+│   ├── backup.sh                # orchestrates driver + compression + verify
 │   ├── upload.sh                # rclone upload + remote retention
 │   ├── cleanup.sh               # local retention
+│   ├── healthcheck.sh           # Docker HEALTHCHECK probe
+│   ├── restore.sh               # one-command restore (postgres / mysql)
 │   └── drivers/
 │       ├── postgres.sh          # pg_dump → stdout
 │       ├── mysql.sh             # mysqldump → stdout
@@ -303,6 +337,19 @@ exec yourdb-dump-tool \
 
 ## 📋 Restore
 
+The image ships a `restore.sh` helper (postgres & mysql). It auto-picks the
+newest archive and handles the encryption password for you:
+
+```bash
+# Restore the newest postgres backup into the configured DB
+docker exec -it mybackup restore.sh postgres
+
+# Restore a specific file
+docker exec -it mybackup restore.sh postgres myapp_postgres_20260624_020000.zip
+```
+
+Manual restore (any environment):
+
 ```bash
 # PostgreSQL
 unzip -p backup.zip | psql -h myhost -U myuser -d mydb
@@ -314,9 +361,56 @@ unzip -p backup.zip | mysql -h myhost -u myuser -p mydb
 unzip backup.zip -d ./restore/
 mc mirror ./restore/ myminio/mybucket
 
-# Encrypted backup — unzip will prompt for password
-unzip -p backup.zip | psql ...
+# Encrypted backup
+unzip -P "$BACKUP_PASSWORD" -p backup.zip | psql ...
 ```
+
+> ⚠️ **Test your restore.** A backup you have never restored is a guess, not a
+> backup. Try it once against a throwaway database.
+
+---
+
+## ☁️ Google Drive setup (avoid the #1 failure mode)
+
+Google Drive over OAuth is the most common destination — and its tokens are the
+most common reason uploads silently die. Two things matter:
+
+**1. Publish your OAuth app to "Production".**
+If your OAuth client sits in **Testing** mode, Google **revokes the refresh
+token after 7 days** — backups upload for a week, then every upload fails with
+`invalid_grant`. Fix it once:
+
+> Google Cloud Console → **APIs & Services → OAuth consent screen** →
+> **Publishing status: Testing → "PUBLISH APP" → In production**.
+> (For a personal Drive you do not need Google's verification — just confirm the
+> "unverified app" dialog. Then regenerate the token with `rclone config reconnect`.)
+
+**2. For unattended servers, prefer a Service Account — no tokens to expire.**
+A service account authenticates with a JSON key that never expires and needs no
+browser. Best for headless backups.
+
+```ini
+# rclone.conf
+[gdrive]
+type = drive
+scope = drive
+service_account_file = /etc/rclone/sa.json
+# To drop files in a normal Drive folder, share that folder with the service
+# account's email and set:
+# root_folder_id = <folder id from the Drive URL>
+```
+
+Mount the key alongside the config:
+
+```yaml
+    volumes:
+      - ./rclone.conf:/etc/rclone/rclone.conf:ro
+      - ./sa.json:/etc/rclone/sa.json:ro
+```
+
+> The container always copies your config to a writable location internally, so
+> mounting `rclone.conf` **read-only (`:ro`) is correct and recommended** —
+> token refreshes still work, and your host file is never modified.
 
 ---
 

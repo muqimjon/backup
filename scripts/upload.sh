@@ -30,7 +30,7 @@ upload_pending() {
         log "Last upload : never"
     fi
 
-    local uploaded=0 failed=0 total_bytes=0
+    local uploaded=0 failed=0 total_bytes=0 last_error=""
 
     while IFS= read -r file; do
         local filename; filename=$(basename "$file")
@@ -44,21 +44,27 @@ upload_pending() {
         local size; size=$(du -sh "$file" 2>/dev/null | cut -f1)
         log "Uploading: ${filename}  (${size})"
 
+        local rclone_log; rclone_log=$(mktemp)
         if rclone copy \
             --config "$RCLONE_CONFIG" \
             --no-update-modtime \
             --retries 3 \
             --low-level-retries 5 \
-            --quiet \
-            "$file" "${RCLONE_REMOTE}:${RCLONE_PATH}" 2>/dev/null; then
+            --stats 0 \
+            "$file" "${RCLONE_REMOTE}:${RCLONE_PATH}" >"$rclone_log" 2>&1; then
             log "Uploaded : ${filename}"
             (( uploaded++ )) || true
             local bytes; bytes=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo 0)
             (( total_bytes += bytes )) || true
         else
             log "FAILED   : ${filename}"
+            # Surface the real reason instead of swallowing it — this is how you
+            # find out a token expired without reading 10,000 lines of logs.
+            last_error=$(tail -n 3 "$rclone_log" | tr '\n' ' ')
+            [ -n "$last_error" ] && log "  reason: ${last_error}"
             (( failed++ )) || true
         fi
+        rm -f "$rclone_log"
     done < <(find "$BACKUP_DIR" -maxdepth 1 -type f -name "*.zip" | sort)
 
     if [ "$uploaded" -gt 0 ]; then
@@ -70,7 +76,14 @@ upload_pending() {
         log "No new files to upload"
     fi
 
-    [ "$failed" -gt 0 ] && log "WARNING: ${failed} file(s) failed — will retry on next run" || true
+    if [ "$failed" -gt 0 ]; then
+        log "WARNING: ${failed} file(s) failed — will retry on next run"
+        notify error "Upload FAILED for ${failed} file(s) → ${RCLONE_REMOTE}:${RCLONE_PATH}. Last reason: ${last_error:-unknown}"
+        heartbeat /fail
+    elif [ "$uploaded" -gt 0 ]; then
+        notify success "Uploaded ${uploaded} backup(s) → ${RCLONE_REMOTE}:${RCLONE_PATH}"
+        heartbeat
+    fi
 }
 
 prune_remote() {

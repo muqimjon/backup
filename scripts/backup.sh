@@ -5,6 +5,7 @@ readonly LOG_PREFIX="backup"
 readonly BACKUP_DIR="${BACKUP_DIR:-/backup}"
 readonly COMPRESSION_LEVEL="${COMPRESSION_LEVEL:-6}"
 readonly PROJECT_NAME="${PROJECT_NAME:-backup}"
+readonly MIN_BACKUP_BYTES="${MIN_BACKUP_BYTES:-256}"
 
 source /usr/local/bin/lib.sh
 
@@ -32,8 +33,23 @@ run_backup() {
             || error_exit "Backup failed (driver: ${driver})"
     fi
 
+    # ── Verify: a backup you can't trust is worse than no backup ──────────────
+    local bytes; bytes=$(stat -c%s "$outfile" 2>/dev/null || stat -f%z "$outfile" 2>/dev/null || echo 0)
+    if [ "$bytes" -lt "$MIN_BACKUP_BYTES" ]; then
+        rm -f "$outfile"
+        error_exit "Backup too small (${bytes}B) — driver '${driver}' produced no usable data"
+    fi
+    # zip -T can't read encrypted entries without the password; test accordingly
+    if [ -n "${BACKUP_PASSWORD:-}" ]; then
+        unzip -P "${BACKUP_PASSWORD}" -t "$outfile" >/dev/null 2>&1 \
+            || { rm -f "$outfile"; error_exit "Backup integrity check failed (driver: ${driver})"; }
+    else
+        zip -T "$outfile" >/dev/null 2>&1 \
+            || { rm -f "$outfile"; error_exit "Backup integrity check failed (driver: ${driver})"; }
+    fi
+
     local size; size=$(du -sh "$outfile" 2>/dev/null | cut -f1)
-    log "Done    : ${name}.zip  (${size})"
+    log "Done    : ${name}.zip  (${size})  ✓ verified"
 }
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
@@ -52,6 +68,8 @@ state_set LAST_BACKUP "$(date +%s)"
 log "State updated"
 log "Backup finished"
 log "=========================================="
+
+notify success "Backup created for ${#DRIVERS[@]} source(s): ${DRIVERS[*]}"
 
 # Upload ergashuvchi — o'z scheduli yo'q bo'lsa darhol ishga tushiradi
 # (upload.sh o'zi cleanup ni ham chaqiradi agar cleanup scheduli yo'q bo'lsa)

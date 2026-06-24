@@ -1,0 +1,12 @@
+.git
+.github
+*.md
+Makefile
+docker-compose*.yml
+rclone.conf
+*.env
+.env
+*.zip
+backup-data/
+docker-data/
+data/

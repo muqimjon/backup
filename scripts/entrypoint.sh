@@ -8,18 +8,38 @@ readonly CRONTAB_FILE=/etc/backup.crontab
 source /usr/local/bin/lib.sh
 
 setup_rclone() {
-    local config="${RCLONE_CONFIG:-/etc/rclone/rclone.conf}"
-    export RCLONE_CONFIG="$config"
+    local provided="${RCLONE_CONFIG:-/etc/rclone/rclone.conf}"
+    # rclone refreshes OAuth tokens by writing config to a temp file then renaming
+    # it into place — which FAILS on a single-file bind mount (you can't rename
+    # over a bind-mounted inode). So we always work from a writable in-container
+    # copy. The host file can safely be mounted read-only.
+    local active="/etc/rclone-active/rclone.conf"
+    mkdir -p "$(dirname "$active")"
 
-    if [ -f "$config" ]; then
-        log "Rclone: config file found ($config)"
+    if [ -f "$provided" ]; then
+        cp "$provided" "$active"
+        chmod 600 "$active"
+        export RCLONE_CONFIG="$active"
+        log "Rclone: config loaded ($provided → writable copy)"
     elif [ -n "${RCLONE_CONFIG_CONTENT:-}" ]; then
-        mkdir -p "$(dirname "$config")"
-        printf '%s' "$RCLONE_CONFIG_CONTENT" > "$config"
-        chmod 600 "$config"
+        printf '%s' "$RCLONE_CONFIG_CONTENT" > "$active"
+        chmod 600 "$active"
+        export RCLONE_CONFIG="$active"
         log "Rclone: config loaded from RCLONE_CONFIG_CONTENT"
     else
         log "WARNING: No rclone config — uploads will be skipped"
+        return 0
+    fi
+
+    # Fail loud, fail early: if the remote is unreachable at startup (expired /
+    # revoked token), tell the operator NOW instead of silently at 02:00.
+    if [ -n "${RCLONE_REMOTE:-}" ]; then
+        if rclone --config "$active" lsd "${RCLONE_REMOTE}:" >/dev/null 2>&1; then
+            log "Rclone: remote '${RCLONE_REMOTE}' reachable ✓"
+        else
+            log "WARNING: remote '${RCLONE_REMOTE}' NOT reachable — token may be expired/revoked"
+            notify error "Rclone remote '${RCLONE_REMOTE}' unreachable at startup — auth/token likely invalid. Backups will be created but NOT uploaded until fixed."
+        fi
     fi
 }
 

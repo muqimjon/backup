@@ -73,6 +73,20 @@ services:
       COMPRESSION_LEVEL: 6          # zip level 1-9 (default: 6)
       BACKUP_PASSWORD: "str0ngP@ss" # optional AES-256 zip encryption
 
+      # ── Alerts & monitoring (all optional) ──────
+      NOTIFY_ON: failure                       # failure | always | never
+      NOTIFY_TELEGRAM_TOKEN: "123456:ABC..."   # from @BotFather
+      NOTIFY_TELEGRAM_CHAT_ID: "123456789"     # from @userinfobot
+      # NOTIFY_WEBHOOK_URL: https://example.com/hook
+      # HEARTBEAT_URL: https://hc-ping.com/your-uuid   # dead-man's-switch
+      # Email (Gmail → use an App Password, not your login password)
+      # SMTP_HOST: smtp.gmail.com
+      # SMTP_PORT: 587
+      # SMTP_USER: you@gmail.com
+      # SMTP_PASS: app-password
+      # EMAIL_FROM: you@gmail.com
+      # EMAIL_TO: you@gmail.com, teammate@gmail.com
+
       # ── Rclone destination ──────────────────────
       RCLONE_REMOTE: gdrive
       RCLONE_PATH: backups/myapp
@@ -120,10 +134,10 @@ services:
       BACKUP_SCHEDULE: "0 3 * * *"
       UPLOAD_SCHEDULE: "0 */4 * * *"
 
-      # ── Retention ───────────────────────────────
-      MIN_LOCAL_BACKUPS: 2
-      MAX_LOCAL_BACKUPS: 6           # 3 per source × 2 sources
-      MAX_REMOTE_BACKUPS: 60         # 30 per source × 2 sources
+      # ── Retention (applied PER SOURCE, not combined) ──
+      MIN_LOCAL_BACKUPS: 2           # keep ≥2 postgres AND ≥2 minio locally
+      MAX_LOCAL_BACKUPS: 5           # keep ≤5 of each, paired by timestamp
+      MAX_REMOTE_BACKUPS: 30         # keep ≤30 of each in the cloud
 
       # ── Rclone destination ──────────────────────
       RCLONE_REMOTE: gdrive

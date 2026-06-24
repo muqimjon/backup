@@ -1,0 +1,13 @@
+# Secrets — never commit these
+rclone.conf
+*.env
+.env
+*-sa.json
+service-account*.json
+
+# Backup artifacts & local state
+*.zip
+.state
+backup-data/
+docker-data/
+data/
