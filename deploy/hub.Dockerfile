@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # backuphub — control plane (Angular UI served by the .NET 10 API, one image).
 # Build (from repo root):
-#   docker build -f deploy/hub.Dockerfile -t muqimjon/backuphub .
+#   docker build -f deploy/hub.Dockerfile -t muqimjon/zaxira-console .
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Stage 1 — build the Angular SPA

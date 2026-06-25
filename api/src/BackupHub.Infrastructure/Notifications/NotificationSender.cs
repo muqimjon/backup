@@ -23,9 +23,9 @@ public sealed class NotificationSender(HttpClient http, ISettingsService setting
 
     private static readonly Dictionary<string, (string Ok, string Fail, string Test)> Words = new()
     {
-        ["en"] = ("OK", "FAILED", "✅ Test notification from BackupHub."),
-        ["ru"] = ("УСПЕХ", "СБОЙ", "✅ Тестовое уведомление от BackupHub."),
-        ["uz"] = ("OK", "XATO", "✅ BackupHub'dan test bildirishnomasi."),
+        ["en"] = ("OK", "FAILED", "✅ Test notification from Zaxira."),
+        ["ru"] = ("УСПЕХ", "СБОЙ", "✅ Тестовое уведомление от Zaxira."),
+        ["uz"] = ("OK", "XATO", "✅ Zaxira'dan test bildirishnomasi."),
     };
 
     public async Task DispatchRunAsync(RunType type, RunStatus status, string project, string driver, string? message, CancellationToken ct = default)
@@ -48,7 +48,7 @@ public sealed class NotificationSender(HttpClient http, ISettingsService setting
     public async Task<string> SendTestAsync(CancellationToken ct = default)
     {
         var cfg = await settings.GetManyAsync(NotificationKeys.All, ct);
-        var sent = await Send(cfg, "info", lang => ("BackupHub", Words[lang].Test), ct);
+        var sent = await Send(cfg, "info", lang => ("Zaxira", Words[lang].Test), ct);
         return sent.Count == 0 ? "No channels configured (add a recipient/chat first)." : "Sent via: " + string.Join(", ", sent);
     }
 

@@ -12,7 +12,7 @@ import { Lang, Locale } from '../../core/lang';
   template: `
     <div class="layout">
       <aside>
-        <div class="brand">🗄️ BackupHub</div>
+        <div class="brand">🗄️ Zaxira</div>
         <nav>
           @for (item of nav; track item.path) {
             <a [routerLink]="item.path" routerLinkActive="active">{{ item.icon }} {{ lang.t(item.key) }}</a>

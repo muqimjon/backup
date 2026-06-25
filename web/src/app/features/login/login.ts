@@ -10,7 +10,7 @@ import { AuthService } from '../../core/auth.service';
   template: `
     <div class="wrap">
       <form class="card" (ngSubmit)="submit()">
-        <div class="brand">🗄️ BackupHub</div>
+        <div class="brand">🗄️ Zaxira</div>
         <p class="muted sub">Sign in to manage your backups</p>
 
         <label>Username</label>

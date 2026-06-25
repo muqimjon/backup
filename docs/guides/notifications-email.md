@@ -1,6 +1,6 @@
 # Email (SMTP) notifications
 
-BackupHub sends mail through **your own** SMTP server. Nothing is shared — credentials
+Zaxira sends mail through **your own** SMTP server. Nothing is shared — credentials
 are encrypted at rest. Configure it in **Settings → Notifications → Email**.
 
 ## Gmail (most common)
@@ -8,7 +8,7 @@ are encrypted at rest. Configure it in **Settings → Notifications → Email**.
 1. Enable **2-Step Verification** on your Google account.
 2. Create an **App Password**: <https://myaccount.google.com/apppasswords>
    (Google no longer allows your normal password for SMTP.)
-3. In BackupHub → Settings → Notifications → **Email**:
+3. In Zaxira → Settings → Notifications → **Email**:
    - **Host:** `smtp.gmail.com`
    - **Port:** `587`
    - **Username:** your full Gmail address

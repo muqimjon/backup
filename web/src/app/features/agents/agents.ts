@@ -102,7 +102,7 @@ export class Agents {
   -e AGENT_NAME=server-2 \\
   --add-host host.docker.internal:host-gateway \\
   -v bh_agent:/backup \\
-  muqimjon/backuphub-agent`;
+  muqimjon/zaxira`;
   }
 
   masked() {

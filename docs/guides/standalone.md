@@ -22,7 +22,7 @@ docker run -d --restart=always --name myapp-backup \
   -e RCLONE_REMOTE=remote -e RCLONE_PATH=backups/myapp \
   -v /srv/backups:/backup \
   -v /srv/rclone.conf:/etc/rclone/rclone.conf:ro \
-  muqimjon/backuphub-agent
+  muqimjon/zaxira
 ```
 
 (No `HUB_URL` → it logs "standalone (.env) mode" and runs the cron.)

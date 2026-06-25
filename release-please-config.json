@@ -5,7 +5,7 @@
   "bump-minor-pre-major": true,
   "packages": {
     ".": {
-      "package-name": "backuphub",
+      "package-name": "zaxira",
       "changelog-path": "CHANGELOG.md"
     }
   }

@@ -137,7 +137,7 @@ poll_commands() {
 }
 
 log "=========================================="
-log "  BackupHub Agent"
+log "  Zaxira Agent"
 log "  Hub     : ${HUB_URL:-<unset>}"
 log "  Project : ${PROJECT_NAME:-backup}"
 log "=========================================="

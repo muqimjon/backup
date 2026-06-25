@@ -10,7 +10,7 @@ n8n, your own API, etc.
 
 ## Payload
 
-On every notification BackupHub sends an HTTP **POST** with JSON:
+On every notification Zaxira sends an HTTP **POST** with JSON:
 
 ```json
 {

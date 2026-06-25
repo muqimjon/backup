@@ -4,8 +4,8 @@ services:
       context: ..
       dockerfile: deploy/hub.Dockerfile
       network: host
-    image: muqimjon/backuphub:latest
-    container_name: backuphub
+    image: muqimjon/zaxira-console:latest
+    container_name: zaxira
     restart: always
     ports:
       - "8080:8080"
@@ -27,8 +27,8 @@ services:
     build:
       context: ..
       dockerfile: workers/images/agent/Dockerfile
-    image: muqimjon/backuphub-agent:latest
-    container_name: backuphub_agent
+    image: muqimjon/zaxira:latest
+    container_name: zaxira_agent
     hostname: ${AGENT_NAME:-local-agent}
     restart: always
     depends_on:
@@ -48,7 +48,7 @@ services:
 
   prometheus:
     image: prom/prometheus:latest
-    container_name: backuphub_prometheus
+    container_name: zaxira_prometheus
     restart: always
     profiles: [metrics]
     volumes:
@@ -59,7 +59,7 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    container_name: backuphub_grafana
+    container_name: zaxira_grafana
     restart: always
     profiles: [metrics]
     depends_on:

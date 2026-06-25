@@ -1,10 +1,10 @@
 # Using rclone (the universal destination)
 
-BackupHub uploads with [rclone](https://rclone.org), which supports **70+ cloud
+Zaxira uploads with [rclone](https://rclone.org), which supports **70+ cloud
 backends**. Most are available as named forms in the UI (S3, B2, SFTP, WebDAV, Google
 Drive). For anything else — **OneDrive, Dropbox, pCloud, Yandex Disk, Storj, Mega,
 Jottacloud, Box, …** — use the **Custom (rclone)** destination: configure the remote once
-with rclone on your computer, then paste its config block into BackupHub.
+with rclone on your computer, then paste its config block into Zaxira.
 
 ## 1. Install rclone
 
@@ -20,7 +20,7 @@ rclone config
 - `n` (new remote) → give it any name, e.g. `mycloud`
 - Pick the storage type (e.g. `onedrive`, `dropbox`, `yandex`, `pcloud`, …)
 - Follow the prompts. For OAuth providers rclone opens your **browser** to authorize —
-  this is where the login happens; BackupHub never sees your password.
+  this is where the login happens; Zaxira never sees your password.
 - Finish with `q` to quit.
 
 ## 3. Copy the config block
@@ -39,7 +39,7 @@ drive_id = b!xxxx
 drive_type = personal
 ```
 
-## 4. Paste it into BackupHub
+## 4. Paste it into Zaxira
 
 - **Destinations → Add destination → Custom (rclone)**
 - Give it a name and a folder path (e.g. `backups/myapp`)

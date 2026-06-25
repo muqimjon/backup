@@ -18,7 +18,7 @@ Upload backups to any server you can SSH into (a VPS, a NAS, another box).
 - Save.
 
 > Passwords are stored using rclone's reversible obscure format (encrypted at rest in
-> BackupHub). For unattended servers an SSH **key file** is the most robust option.
+> Zaxira). For unattended servers an SSH **key file** is the most robust option.
 
 ### Mounting a key into the agent
 

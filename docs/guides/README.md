@@ -1,4 +1,4 @@
-# BackupHub guides
+# Zaxira guides
 
 Step-by-step guides for getting the credentials each integration needs.
 Everything is configured in the **web UI** — these pages just show *where to get* the values.

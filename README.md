@@ -3,7 +3,7 @@
 Automatic, scheduled backup service packaged as Docker images.  
 Dumps your data, compresses it (optionally encrypted), and uploads it to any cloud storage via **rclone** — with local and remote retention management built in.
 
-> **🆕 BackupHub platform (web UI).** These worker images can now run standalone (env config, below)
+> **🆕 Zaxira platform (web UI).** These worker images can now run standalone (env config, below)
 > **or** be driven from a web control plane. The hub gives you: one-button Google Drive OAuth,
 > a UI to define sources/destinations/schedules/retention, live run history, Prometheus/Grafana
 > metrics, and **automated restore-drills** that prove your backups are restorable. Deploy the whole

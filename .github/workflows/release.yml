@@ -41,8 +41,8 @@ jobs:
           - { file: workers/images/minio/Dockerfile,          repo: muqimjon/backup,          variant: minio,          platforms: "linux/amd64,linux/arm64" }
           - { file: workers/images/postgres-minio/Dockerfile, repo: muqimjon/backup,          variant: postgres-minio, platforms: "linux/amd64,linux/arm64" }
           - { file: workers/images/mssql/Dockerfile,          repo: muqimjon/backup,          variant: mssql,          platforms: "linux/amd64" }
-          - { file: workers/images/agent/Dockerfile,          repo: muqimjon/backuphub-agent, variant: "",             platforms: "linux/amd64,linux/arm64" }
-          - { file: deploy/hub.Dockerfile,                    repo: muqimjon/backuphub,       variant: "",             platforms: "linux/amd64,linux/arm64" }
+          - { file: workers/images/agent/Dockerfile,          repo: muqimjon/zaxira, variant: "",             platforms: "linux/amd64,linux/arm64" }
+          - { file: deploy/hub.Dockerfile,                    repo: muqimjon/zaxira-console,       variant: "",             platforms: "linux/amd64,linux/arm64" }
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3

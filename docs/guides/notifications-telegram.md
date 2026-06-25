@@ -1,6 +1,6 @@
 # Telegram notifications
 
-BackupHub uses **your own** Telegram bot. Creating one takes ~1 minute and means no
+Zaxira uses **your own** Telegram bot. Creating one takes ~1 minute and means no
 shared credentials and no rate-limit surprises.
 
 ## 1. Create a bot
@@ -13,13 +13,13 @@ shared credentials and no rate-limit surprises.
 
 - **Settings → Notifications → Telegram**
 - Paste the token and press **Connect**.
-- BackupHub verifies the token with Telegram (an invalid token is rejected immediately).
+- Zaxira verifies the token with Telegram (an invalid token is rejected immediately).
 
 ## 3. Link your chat (with a 6-digit code)
 
 1. Open **your** bot in Telegram and press **Start**.
 2. The bot replies with a **6-digit code**.
-3. Back in BackupHub, enter the code and press **Link**.
+3. Back in Zaxira, enter the code and press **Link**.
 4. Your chat appears in the list (with your name). Repeat for **as many people as you
    want** — each linked chat receives notifications.
 

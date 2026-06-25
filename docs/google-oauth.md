@@ -25,7 +25,7 @@ GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=xxxx
 ```
 
-**Local dev (`api/src/BackupHub.WebApi/appsettings.json` or user-secrets):**
+**Local dev (`api/src/Zaxira.WebApi/appsettings.json` or user-secrets):**
 ```json
 "Google": { "ClientId": "xxxx.apps.googleusercontent.com", "ClientSecret": "xxxx" }
 ```

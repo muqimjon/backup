@@ -95,7 +95,7 @@ public sealed class TelegramPoller(
         var existing = await db.TelegramChats.FirstOrDefaultAsync(c => c.ChatId == chatId, ct);
         if (existing is { Confirmed: true })
         {
-            await Send(http, token, chatId, "✅ This chat is already linked to BackupHub.", ct);
+            await Send(http, token, chatId, "✅ This chat is already linked to Zaxira.", ct);
             return;
         }
 
@@ -110,7 +110,7 @@ public sealed class TelegramPoller(
         }
         await db.SaveChangesAsync(ct);
 
-        await Send(http, token, chatId, $"🔗 Your BackupHub link code is: {code}\nEnter it on the Settings → Notifications page.", ct);
+        await Send(http, token, chatId, $"🔗 Your Zaxira link code is: {code}\nEnter it on the Settings → Notifications page.", ct);
     }
 
     private static async Task Send(HttpClient http, string token, string chatId, string text, CancellationToken ct)

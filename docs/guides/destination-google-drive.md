@@ -1,6 +1,6 @@
 # Google Drive
 
-Google Drive is the one provider with a **one-button Connect** in BackupHub. It needs a
+Google Drive is the one provider with a **one-button Connect** in Zaxira. It needs a
 one-time OAuth app setup by you (the deployer), then anyone clicks **Connect** and approves.
 
 ## Why the one-time setup?
@@ -21,7 +21,7 @@ create it once; after that the hub stores the refresh token and reuses it foreve
    (dev: `http://localhost:5080/api/remotes/google/callback`).
 6. Copy the **Client ID** and **Client secret**.
 
-## 2. Enter them in BackupHub
+## 2. Enter them in Zaxira
 
 - **Destinations → Add destination → Google Drive**
 - First time it shows **Client ID / Client Secret** fields → paste and **Save credentials**.

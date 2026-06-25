@@ -5,7 +5,7 @@
 # Tools: pg_dump • mysqldump • mc • rclone • jq • supercronic
 #
 # Build (from repo root):
-#   docker build -f workers/images/agent/Dockerfile -t muqimjon/backuphub-agent .
+#   docker build -f workers/images/agent/Dockerfile -t muqimjon/zaxira .
 # ─────────────────────────────────────────────────────────────────────────────
 FROM alpine:latest
 
