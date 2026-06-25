@@ -15,10 +15,17 @@ RUN npm run build
 # Stage 2 — build & publish the .NET API (with the SPA embedded as wwwroot)
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS api
 WORKDIR /src
-COPY api/ ./
+# Restore using only the project files first — this layer stays cached across
+# source-only changes, so rebuilds skip the slow package restore.
+COPY api/BackupHub.slnx ./
+COPY api/src/BackupHub.Domain/BackupHub.Domain.csproj ./src/BackupHub.Domain/
+COPY api/src/BackupHub.Application/BackupHub.Application.csproj ./src/BackupHub.Application/
+COPY api/src/BackupHub.Infrastructure/BackupHub.Infrastructure.csproj ./src/BackupHub.Infrastructure/
+COPY api/src/BackupHub.WebApi/BackupHub.WebApi.csproj ./src/BackupHub.WebApi/
 RUN dotnet restore BackupHub.slnx
+COPY api/ ./
 COPY --from=web /web/dist/web/browser ./src/BackupHub.WebApi/wwwroot
-RUN dotnet publish src/BackupHub.WebApi/BackupHub.WebApi.csproj -c Release -o /app
+RUN dotnet publish src/BackupHub.WebApi/BackupHub.WebApi.csproj -c Release -o /app --no-restore
 
 # Stage 3 — runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
