@@ -1,30 +1,37 @@
-# OneDrive / Dropbox / Yandex (via rclone)
+# OneDrive
 
-These use OAuth (a browser login). BackupHub reaches them through the **Custom (rclone)**
-destination — you authorize once with rclone, then paste the result.
+OneDrive now has a **one-button Connect** (like Google Drive). You register a Microsoft
+app once; after that anyone clicks **Connect OneDrive** and approves.
 
-> A native one-button "Connect" for these is on the roadmap; today the rclone path below
-> works for **all** of them and takes about a minute.
+## 1. Register an app (once)
 
-## Steps
+1. Go to <https://entra.microsoft.com> → **App registrations → New registration**.
+2. Name it (e.g. `BackupHub`). Supported account types: *Accounts in any organizational
+   directory and personal Microsoft accounts* (for personal OneDrive).
+3. **Redirect URI** → platform **Web** → `https://YOUR-HUB/api/remotes/onedrive/callback`
+   (dev: `http://localhost:5080/api/remotes/onedrive/callback`).
+4. **API permissions → Add → Microsoft Graph → Delegated**: add `Files.ReadWrite.All` and
+   `offline_access`.
+5. **Certificates & secrets → New client secret** → copy the **Value** (shown once).
+6. From **Overview**, copy the **Application (client) ID**.
 
-1. Install rclone — <https://rclone.org/downloads/>
-2. Run `rclone config`, add a new remote, pick **onedrive** (or **dropbox**, **yandex**).
-3. rclone opens your **browser** to sign in and approve.
-4. Show the config:
-   ```bash
-   rclone config show myonedrive
-   ```
-5. **Destinations → Add destination → Custom (rclone)** → paste the whole block:
-   ```ini
-   [myonedrive]
-   type = onedrive
-   token = {"access_token":"...","refresh_token":"...","expiry":"..."}
-   drive_id = b!xxxx
-   drive_type = personal
-   ```
-6. Set a name + folder path → Save.
+## 2. Enter them in BackupHub
 
-See the general [rclone guide](rclone.md) for more detail. The refresh token is stored
-**encrypted** and refreshed automatically — it won't expire like the old 7-day testing
-tokens did.
+- **Destinations → Add destination → OneDrive**
+- First time it shows **Client ID / Client Secret** → paste and **Save credentials**.
+  (Already set? Click **Change credentials**.)
+
+## 3. Connect
+
+- Click **Connect OneDrive** → Microsoft consent screen → approve.
+- The drive is linked **automatically** (BackupHub fetches your `drive_id`/`drive_type` from
+  Microsoft Graph and stores the encrypted refresh token — it won't expire).
+
+Works for **personal** OneDrive and **OneDrive for Business / SharePoint** document libraries.
+
+---
+
+## Dropbox / Yandex / others
+
+Those still use the **Custom (rclone)** path — see the [rclone guide](rclone.md): run
+`rclone config`, then paste the resulting block into **Destinations → Custom (rclone)**.

@@ -11,7 +11,7 @@ namespace BackupHub.WebApi.Controllers;
 
 public sealed record ConnectState(string Name, string Path);
 
-public sealed class RemotesController(ISender mediator, IGoogleOAuthService google) : ApiController(mediator)
+public sealed class RemotesController(ISender mediator, IGoogleOAuthService google, IOneDriveOAuthService onedrive) : ApiController(mediator)
 {
     [Authorize]
     [HttpGet]
@@ -62,8 +62,32 @@ public sealed class RemotesController(ISender mediator, IGoogleOAuthService goog
             Encoding.UTF8.GetString(Base64UrlDecode(state)))!;
         var tokenJson = await google.ExchangeCodeAsync(code, CallbackUri(), ct);
         await Mediator.Send(new StoreGoogleRemoteCommand(decoded.Name, decoded.Path, tokenJson), ct);
-        return Redirect("/remotes?connected=1");
+        return Redirect("/destinations?connected=1");
     }
+
+    [Authorize]
+    [HttpGet("onedrive/connect")]
+    public async Task<IActionResult> ConnectOneDrive([FromQuery] string name, [FromQuery] string path, CancellationToken ct)
+    {
+        if (!await onedrive.IsConfiguredAsync(ct))
+            return BadRequest(new { error = "OneDrive OAuth is not configured. Add your Client ID and Secret on the Destinations page." });
+
+        var state = Base64Url(JsonSerializer.Serialize(new ConnectState(name, path)));
+        return Ok(new { url = await onedrive.BuildAuthUrlAsync(state, OneDriveCallbackUri(), ct) });
+    }
+
+    [AllowAnonymous]
+    [HttpGet("onedrive/callback")]
+    public async Task<IActionResult> OneDriveCallback([FromQuery] string code, [FromQuery] string state, CancellationToken ct)
+    {
+        var decoded = JsonSerializer.Deserialize<ConnectState>(
+            Encoding.UTF8.GetString(Base64UrlDecode(state)))!;
+        var configJson = await onedrive.ExchangeCodeAsync(code, OneDriveCallbackUri(), ct);
+        await Mediator.Send(new StoreOneDriveRemoteCommand(decoded.Name, decoded.Path, configJson), ct);
+        return Redirect("/destinations?connected=1");
+    }
+
+    private string OneDriveCallbackUri() => $"{Request.Scheme}://{Request.Host}/api/remotes/onedrive/callback";
 
     [AgentAuth]
     [HttpGet("{id:guid}/rclone-conf")]

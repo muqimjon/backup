@@ -25,6 +25,13 @@ export class Api {
     const q = `name=${encodeURIComponent(name)}&path=${encodeURIComponent(path)}`;
     return this.http.get<{ url: string }>(`/api/remotes/google/connect?${q}`);
   }
+  oneDriveConnect(name: string, path: string) {
+    const q = `name=${encodeURIComponent(name)}&path=${encodeURIComponent(path)}`;
+    return this.http.get<{ url: string }>(`/api/remotes/onedrive/connect?${q}`);
+  }
+  updateOneDrive(clientId: string, clientSecret: string) {
+    return this.http.put<boolean>('/api/settings/onedrive', { clientId, clientSecret });
+  }
 
   jobs() { return this.http.get<JobDto[]>('/api/jobs'); }
   createJob(body: CreateJob) { return this.http.post<string>('/api/jobs', body); }

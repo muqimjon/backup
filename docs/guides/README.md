@@ -19,7 +19,7 @@ Per-provider:
 - [Backblaze B2](destination-backblaze-b2.md)
 - [SFTP / SSH](destination-sftp.md)
 - [WebDAV — Nextcloud / Yandex / Koofr](destination-webdav.md)
-- [OneDrive / Dropbox / Yandex (via rclone)](destination-onedrive.md)
+- [OneDrive](destination-onedrive.md) — one-button OAuth (Dropbox/Yandex via rclone)
 
 > **DigitalOcean Spaces, Cloudflare R2, Wasabi** use the **S3** form — they all speak the S3 API.
 > Just use their endpoint + access key + secret key.

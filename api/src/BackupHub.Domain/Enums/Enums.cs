@@ -16,6 +16,7 @@ public enum RemoteType
     B2 = 3,
     Sftp = 4,
     WebDav = 5,
+    OneDrive = 6,
 }
 
 public enum RunType

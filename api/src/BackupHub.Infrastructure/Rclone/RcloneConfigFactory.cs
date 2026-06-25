@@ -19,6 +19,7 @@ public sealed class RcloneConfigFactory(ISecretProtector protector) : IRcloneCon
             RemoteType.B2 => BuildB2(data),
             RemoteType.Sftp => BuildSftp(data),
             RemoteType.WebDav => BuildWebDav(data),
+            RemoteType.OneDrive => BuildOneDrive(data),
             RemoteType.Custom => BuildCustom(data),
             _ => throw new NotSupportedException($"Remote type {remote.Type} not supported"),
         };
@@ -61,6 +62,16 @@ public sealed class RcloneConfigFactory(ISecretProtector protector) : IRcloneCon
         var password = root.GetProperty("Password").GetString();
         return $"[remote]\ntype = webdav\nurl = {url}\nvendor = {vendor}\nuser = {user}\n" +
                $"pass = {RcloneObscure.Obscure(password ?? string.Empty)}\n";
+    }
+
+    private static string BuildOneDrive(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        var token = root.GetProperty("token").GetString();
+        var driveId = root.TryGetProperty("driveId", out var d) ? d.GetString() : "";
+        var driveType = root.TryGetProperty("driveType", out var t) ? t.GetString() : "personal";
+        return $"[remote]\ntype = onedrive\ntoken = {token}\ndrive_id = {driveId}\ndrive_type = {driveType}\n";
     }
 
     private static string BuildCustom(string raw)

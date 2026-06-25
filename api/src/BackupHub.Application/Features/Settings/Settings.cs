@@ -3,7 +3,7 @@ using Mediator;
 
 namespace BackupHub.Application.Features.Settings;
 
-public sealed record SettingsDto(bool GoogleConfigured);
+public sealed record SettingsDto(bool GoogleConfigured, bool OneDriveConfigured);
 
 public sealed record GetSettingsQuery : IRequest<SettingsDto>;
 
@@ -12,9 +12,11 @@ internal sealed class GetSettingsHandler(ISettingsService settings)
 {
     public async ValueTask<SettingsDto> Handle(GetSettingsQuery query, CancellationToken ct)
     {
-        var stored = await settings.GetManyAsync(["Google.ClientId", "Google.ClientSecret"], ct);
-        var configured = stored.ContainsKey("Google.ClientId") && stored.ContainsKey("Google.ClientSecret");
-        return new SettingsDto(configured);
+        var stored = await settings.GetManyAsync(
+            ["Google.ClientId", "Google.ClientSecret", "OneDrive.ClientId", "OneDrive.ClientSecret"], ct);
+        var google = stored.ContainsKey("Google.ClientId") && stored.ContainsKey("Google.ClientSecret");
+        var onedrive = stored.ContainsKey("OneDrive.ClientId") && stored.ContainsKey("OneDrive.ClientSecret");
+        return new SettingsDto(google, onedrive);
     }
 }
 
@@ -27,6 +29,19 @@ internal sealed class UpdateGoogleSettingsHandler(ISettingsService settings)
     {
         await settings.SetAsync("Google.ClientId", command.ClientId.Trim(), ct);
         await settings.SetAsync("Google.ClientSecret", command.ClientSecret.Trim(), ct);
+        return true;
+    }
+}
+
+public sealed record UpdateOneDriveSettingsCommand(string ClientId, string ClientSecret) : IRequest<bool>;
+
+internal sealed class UpdateOneDriveSettingsHandler(ISettingsService settings)
+    : IRequestHandler<UpdateOneDriveSettingsCommand, bool>
+{
+    public async ValueTask<bool> Handle(UpdateOneDriveSettingsCommand command, CancellationToken ct)
+    {
+        await settings.SetAsync("OneDrive.ClientId", command.ClientId.Trim(), ct);
+        await settings.SetAsync("OneDrive.ClientSecret", command.ClientSecret.Trim(), ct);
         return true;
     }
 }

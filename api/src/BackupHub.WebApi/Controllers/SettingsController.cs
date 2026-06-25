@@ -20,6 +20,10 @@ public sealed class SettingsController(ISender mediator, IConfiguration config) 
     public async Task<ActionResult<bool>> UpdateGoogle(UpdateGoogleSettingsCommand command, CancellationToken ct)
         => Ok(await Mediator.Send(command, ct));
 
+    [HttpPut("onedrive")]
+    public async Task<ActionResult<bool>> UpdateOneDrive(UpdateOneDriveSettingsCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command, ct));
+
     [HttpPut("locale")]
     public async Task<ActionResult<bool>> UpdateLocale(UpdateLocaleCommand command, CancellationToken ct)
         => Ok(await Mediator.Send(command, ct));

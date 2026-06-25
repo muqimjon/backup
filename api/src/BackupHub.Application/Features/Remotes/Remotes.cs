@@ -189,6 +189,26 @@ internal sealed class CreateCustomRemoteHandler(IAppDbContext db, ISecretProtect
     }
 }
 
+public sealed record StoreOneDriveRemoteCommand(string Name, string Path, string ConfigJson) : IRequest<Guid>;
+
+internal sealed class StoreOneDriveRemoteHandler(IAppDbContext db, ISecretProtector protector)
+    : IRequestHandler<StoreOneDriveRemoteCommand, Guid>
+{
+    public async ValueTask<Guid> Handle(StoreOneDriveRemoteCommand command, CancellationToken ct)
+    {
+        var remote = new Remote
+        {
+            Name = command.Name,
+            Type = RemoteType.OneDrive,
+            Path = command.Path,
+            ConfigEncrypted = protector.Protect(command.ConfigJson),
+        };
+        db.Remotes.Add(remote);
+        await db.SaveChangesAsync(ct);
+        return remote.Id;
+    }
+}
+
 public sealed record StoreGoogleRemoteCommand(string Name, string Path, string TokenJson) : IRequest<Guid>;
 
 internal sealed class StoreGoogleRemoteHandler(IAppDbContext db, ISecretProtector protector)

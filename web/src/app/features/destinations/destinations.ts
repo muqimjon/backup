@@ -6,15 +6,16 @@ import { remoteTypeLabel } from '../../core/format';
 import { Lang } from '../../core/lang';
 import { Modal } from '../../shared/modal';
 
-type Kind = 'gdrive' | 's3' | 'b2' | 'sftp' | 'webdav' | 'custom';
+type Kind = 'gdrive' | 'onedrive' | 's3' | 'b2' | 'sftp' | 'webdav' | 'custom';
 
 const CATALOG: Record<Kind, { title: string; covers: string }> = {
   gdrive: { title: 'Google Drive', covers: 'Google Drive — one-button OAuth' },
+  onedrive: { title: 'OneDrive', covers: 'Microsoft OneDrive (personal & business) — one-button OAuth' },
   s3: { title: 'S3-compatible', covers: 'AWS S3 · MinIO · Cloudflare R2 · Wasabi · Backblaze B2 (S3) · DigitalOcean Spaces · any S3 API' },
   b2: { title: 'Backblaze B2', covers: 'Backblaze B2 — native application key' },
   sftp: { title: 'SFTP / SSH', covers: 'any SSH/SFTP server · VPS · NAS' },
   webdav: { title: 'WebDAV', covers: 'Nextcloud · ownCloud · Yandex Disk · Koofr · any WebDAV server' },
-  custom: { title: 'Custom (rclone)', covers: 'OneDrive · Dropbox · pCloud · Storj · Mega · Jottacloud · Yandex · 70+ rclone backends' },
+  custom: { title: 'Custom (rclone)', covers: 'Dropbox · pCloud · Storj · Mega · Jottacloud · Yandex · 70+ rclone backends' },
 };
 
 @Component({
@@ -72,6 +73,23 @@ const CATALOG: Record<Kind, { title: string; covers: string }> = {
               <div class="row" style="gap:10px;margin-top:16px">
                 <button (click)="saveGoogleCreds()" [disabled]="busy()">Save credentials</button>
                 @if (googleConfigured()) { <button class="ghost" (click)="editGoogle.set(false)">Cancel</button> }
+              </div>
+            }
+          }
+          @case ('onedrive') {
+            @if (oneDriveConfigured() && !editOneDrive()) {
+              <p class="ok-note">✓ OneDrive OAuth app configured. <a class="lnk" (click)="editOneDrive.set(true)">Change credentials</a></p>
+              <label>Name</label><input [(ngModel)]="name" />
+              <label>Folder path</label><input [(ngModel)]="path" placeholder="backups/myapp" />
+              <button class="g" (click)="connectOneDrive()" [disabled]="busy()">{{ busy() ? 'Redirecting…' : 'Connect OneDrive' }}</button>
+              <p class="hint">Clicking Connect opens Microsoft's consent screen. After you approve, the drive is linked <b>automatically</b> — no token to copy.</p>
+            } @else {
+              <p class="hint">One-time setup: register an app in <b>Azure / Microsoft Entra</b> (App registrations → New), add a Web redirect URI <code>{{ origin }}/api/remotes/onedrive/callback</code>, grant Microsoft Graph <code>Files.ReadWrite.All</code> + <code>offline_access</code>, then paste the Application (client) ID and a client secret.</p>
+              <label>Client ID</label><input [(ngModel)]="odClientId" placeholder="00000000-0000-0000-0000-000000000000" />
+              <label>Client Secret</label><input type="password" [(ngModel)]="odClientSecret" />
+              <div class="row" style="gap:10px;margin-top:16px">
+                <button (click)="saveOneDriveCreds()" [disabled]="busy()">Save credentials</button>
+                @if (oneDriveConfigured()) { <button class="ghost" (click)="editOneDrive.set(false)">Cancel</button> }
               </div>
             }
           }
@@ -160,7 +178,7 @@ export class Destinations {
   protected api = inject(Api);
   lang = inject(Lang);
   protected catalog = CATALOG;
-  protected kinds: Kind[] = ['gdrive', 's3', 'b2', 'sftp', 'webdav', 'custom'];
+  protected kinds: Kind[] = ['gdrive', 'onedrive', 's3', 'b2', 'sftp', 'webdav', 'custom'];
   protected origin = location.origin;
 
   items = signal<RemoteDto[]>([]);
@@ -170,11 +188,14 @@ export class Destinations {
   error = signal<string | null>(null);
   googleConfigured = signal(false);
   editGoogle = signal(false);
+  oneDriveConfigured = signal(false);
+  editOneDrive = signal(false);
 
   name = 's3';
   path = 'backups/myapp';
   custom = '';
   gClientId = ''; gClientSecret = '';
+  odClientId = ''; odClientSecret = '';
   s3 = { endpoint: '', accessKey: '', secretKey: '', region: '' };
   b2 = { account: '', key: '' };
   sftp = { host: '', port: 22, username: '', password: '', keyFile: '' };
@@ -182,7 +203,10 @@ export class Destinations {
 
   remoteTypeLabel = remoteTypeLabel;
 
-  constructor() { this.load(); this.api.settings().subscribe(s => this.googleConfigured.set(s.googleConfigured)); }
+  constructor() {
+    this.load();
+    this.api.settings().subscribe(s => { this.googleConfigured.set(s.googleConfigured); this.oneDriveConfigured.set(s.oneDriveConfigured); });
+  }
 
   load() { this.api.remotes().subscribe(r => this.items.set(r)); }
 
@@ -216,6 +240,24 @@ export class Destinations {
     this.busy.set(true);
     this.error.set(null);
     this.api.googleConnect(this.name || 'gdrive', this.path).subscribe({
+      next: res => (window.location.href = res.url),
+      error: e => { this.busy.set(false); this.error.set(this.msg(e)); },
+    });
+  }
+
+  saveOneDriveCreds() {
+    if (!this.odClientId || !this.odClientSecret) return;
+    this.busy.set(true);
+    this.api.updateOneDrive(this.odClientId, this.odClientSecret).subscribe({
+      next: () => { this.busy.set(false); this.oneDriveConfigured.set(true); this.editOneDrive.set(false); this.odClientSecret = ''; },
+      error: e => { this.busy.set(false); this.error.set(this.msg(e)); },
+    });
+  }
+
+  connectOneDrive() {
+    this.busy.set(true);
+    this.error.set(null);
+    this.api.oneDriveConnect(this.name || 'onedrive', this.path).subscribe({
       next: res => (window.location.href = res.url),
       error: e => { this.busy.set(false); this.error.set(this.msg(e)); },
     });

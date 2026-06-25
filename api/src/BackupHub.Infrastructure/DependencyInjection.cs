@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddSingleton<IRcloneConfigFactory, RcloneConfigFactory>();
         services.AddScoped<ISettingsService, SettingsService>();
         services.AddHttpClient<IGoogleOAuthService, GoogleOAuthService>();
+        services.AddHttpClient<IOneDriveOAuthService, OneDriveOAuthService>();
         services.AddHttpClient<INotificationSender, Notifications.NotificationSender>();
         services.AddHostedService<Notifications.TelegramPoller>();
 
