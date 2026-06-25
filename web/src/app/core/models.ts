@@ -53,7 +53,7 @@ export interface CreateJob {
 
 export interface AgentDto {
   id: string; name: string; hostname: string; project: string;
-  drivers: string; version: string; lastSeenAt: string | null;
+  drivers: string; version: string; enabled: boolean; lastSeenAt: string | null;
 }
 
 export interface RunDto {
@@ -83,18 +83,14 @@ export interface BackupVersionDto {
 
 export interface SettingsDto { googleConfigured: boolean; }
 
-export interface TelegramChatDto { id: string; chatId: string; label: string | null; }
+export interface TelegramChatDto { id: string; chatId: string; label: string | null; lang: string | null; }
+export interface EmailRecipientDto { id: string; email: string; name: string | null; lang: string | null; }
 export interface NotificationSettingsDto {
   notifyOn: string;
   smtpHost: string | null; smtpPort: number | null; smtpUser: string | null;
-  smtpFrom: string | null; smtpTo: string | null; smtpPassSet: boolean;
+  smtpFrom: string | null; smtpPassSet: boolean;
   webhookUrl: string | null;
   telegramBotSet: boolean;
   chats: TelegramChatDto[];
-}
-export interface UpdateNotificationSettings {
-  notifyOn: string;
-  smtpHost: string | null; smtpPort: number | null; smtpUser: string | null;
-  smtpPass: string | null; smtpFrom: string | null; smtpTo: string | null;
-  webhookUrl: string | null; telegramBotToken: string | null;
+  recipients: EmailRecipientDto[];
 }

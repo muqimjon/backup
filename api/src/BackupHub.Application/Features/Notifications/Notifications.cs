@@ -1,4 +1,5 @@
 using BackupHub.Application.Abstractions;
+using BackupHub.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,12 +13,12 @@ internal static class Keys
     public const string SmtpUser = "Smtp.User";
     public const string SmtpPass = "Smtp.Pass";
     public const string SmtpFrom = "Smtp.From";
-    public const string SmtpTo = "Smtp.To";
     public const string WebhookUrl = "Webhook.Url";
     public const string TelegramBotToken = "Telegram.BotToken";
 }
 
-public sealed record TelegramChatDto(Guid Id, string ChatId, string? Label);
+public sealed record TelegramChatDto(Guid Id, string ChatId, string? Label, string? Lang);
+public sealed record EmailRecipientDto(Guid Id, string Email, string? Name, string? Lang);
 
 public sealed record NotificationSettingsDto(
     string NotifyOn,
@@ -25,11 +26,11 @@ public sealed record NotificationSettingsDto(
     int? SmtpPort,
     string? SmtpUser,
     string? SmtpFrom,
-    string? SmtpTo,
     bool SmtpPassSet,
     string? WebhookUrl,
     bool TelegramBotSet,
-    IReadOnlyList<TelegramChatDto> Chats);
+    IReadOnlyList<TelegramChatDto> Chats,
+    IReadOnlyList<EmailRecipientDto> Recipients);
 
 public sealed record GetNotificationSettingsQuery : IRequest<NotificationSettingsDto>;
 
@@ -39,12 +40,13 @@ internal sealed class GetNotificationSettingsHandler(ISettingsService settings, 
     public async ValueTask<NotificationSettingsDto> Handle(GetNotificationSettingsQuery query, CancellationToken ct)
     {
         var c = await settings.GetManyAsync(
-            [Keys.NotifyOn, Keys.SmtpHost, Keys.SmtpPort, Keys.SmtpUser, Keys.SmtpPass, Keys.SmtpFrom, Keys.SmtpTo, Keys.WebhookUrl, Keys.TelegramBotToken], ct);
+            [Keys.NotifyOn, Keys.SmtpHost, Keys.SmtpPort, Keys.SmtpUser, Keys.SmtpPass, Keys.SmtpFrom, Keys.WebhookUrl, Keys.TelegramBotToken], ct);
 
-        var chats = await db.TelegramChats
-            .Where(t => t.Confirmed)
-            .Select(t => new TelegramChatDto(t.Id, t.ChatId, t.Label))
-            .ToListAsync(ct);
+        var chats = await db.TelegramChats.Where(t => t.Confirmed)
+            .Select(t => new TelegramChatDto(t.Id, t.ChatId, t.Label, t.Lang)).ToListAsync(ct);
+        var recipients = await db.EmailRecipients
+            .OrderBy(r => r.Email)
+            .Select(r => new EmailRecipientDto(r.Id, r.Email, r.Name, r.Lang)).ToListAsync(ct);
 
         return new NotificationSettingsDto(
             c.GetValueOrDefault(Keys.NotifyOn, "failure"),
@@ -52,11 +54,10 @@ internal sealed class GetNotificationSettingsHandler(ISettingsService settings, 
             int.TryParse(c.GetValueOrDefault(Keys.SmtpPort), out var p) ? p : null,
             c.GetValueOrDefault(Keys.SmtpUser),
             c.GetValueOrDefault(Keys.SmtpFrom),
-            c.GetValueOrDefault(Keys.SmtpTo),
             c.ContainsKey(Keys.SmtpPass),
             c.GetValueOrDefault(Keys.WebhookUrl),
             c.ContainsKey(Keys.TelegramBotToken),
-            chats);
+            chats, recipients);
     }
 }
 
@@ -73,7 +74,7 @@ internal sealed class UpdateNotifyModeHandler(ISettingsService settings)
 }
 
 public sealed record UpdateEmailCommand(
-    string? SmtpHost, int? SmtpPort, string? SmtpUser, string? SmtpPass, string? SmtpFrom, string? SmtpTo) : IRequest<bool>;
+    string? SmtpHost, int? SmtpPort, string? SmtpUser, string? SmtpPass, string? SmtpFrom) : IRequest<bool>;
 
 internal sealed class UpdateEmailHandler(ISettingsService settings)
     : IRequestHandler<UpdateEmailCommand, bool>
@@ -84,9 +85,46 @@ internal sealed class UpdateEmailHandler(ISettingsService settings)
         await settings.SetAsync(Keys.SmtpPort, command.SmtpPort?.ToString(), ct);
         await settings.SetAsync(Keys.SmtpUser, command.SmtpUser, ct);
         await settings.SetAsync(Keys.SmtpFrom, command.SmtpFrom, ct);
-        await settings.SetAsync(Keys.SmtpTo, command.SmtpTo, ct);
         if (!string.IsNullOrWhiteSpace(command.SmtpPass))
             await settings.SetAsync(Keys.SmtpPass, command.SmtpPass, ct);
+        return true;
+    }
+}
+
+public sealed record AddEmailRecipientCommand(string Email, string? Name, string? Lang) : IRequest<Guid>;
+
+internal sealed class AddEmailRecipientHandler(IAppDbContext db)
+    : IRequestHandler<AddEmailRecipientCommand, Guid>
+{
+    public async ValueTask<Guid> Handle(AddEmailRecipientCommand command, CancellationToken ct)
+    {
+        var email = command.Email.Trim();
+        var existing = await db.EmailRecipients.FirstOrDefaultAsync(r => r.Email == email, ct);
+        if (existing is not null)
+        {
+            existing.Name = command.Name;
+            existing.Lang = command.Lang;
+            await db.SaveChangesAsync(ct);
+            return existing.Id;
+        }
+        var row = new EmailRecipient { Email = email, Name = command.Name, Lang = command.Lang };
+        db.EmailRecipients.Add(row);
+        await db.SaveChangesAsync(ct);
+        return row.Id;
+    }
+}
+
+public sealed record RemoveEmailRecipientCommand(Guid Id) : IRequest<bool>;
+
+internal sealed class RemoveEmailRecipientHandler(IAppDbContext db)
+    : IRequestHandler<RemoveEmailRecipientCommand, bool>
+{
+    public async ValueTask<bool> Handle(RemoveEmailRecipientCommand command, CancellationToken ct)
+    {
+        var row = await db.EmailRecipients.FirstOrDefaultAsync(r => r.Id == command.Id, ct);
+        if (row is null) return false;
+        db.EmailRecipients.Remove(row);
+        await db.SaveChangesAsync(ct);
         return true;
     }
 }
@@ -131,11 +169,24 @@ internal sealed class LinkTelegramHandler(IAppDbContext db)
     {
         var code = command.Code.Trim();
         var chat = await db.TelegramChats.FirstOrDefaultAsync(c => c.Code == code && !c.Confirmed, ct);
-        if (chat is null)
-            return false;
-
+        if (chat is null) return false;
         chat.Confirmed = true;
         chat.Code = null;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+}
+
+public sealed record SetTelegramChatLangCommand(Guid Id, string? Lang) : IRequest<bool>;
+
+internal sealed class SetTelegramChatLangHandler(IAppDbContext db)
+    : IRequestHandler<SetTelegramChatLangCommand, bool>
+{
+    public async ValueTask<bool> Handle(SetTelegramChatLangCommand command, CancellationToken ct)
+    {
+        var chat = await db.TelegramChats.FirstOrDefaultAsync(c => c.Id == command.Id, ct);
+        if (chat is null) return false;
+        chat.Lang = command.Lang;
         await db.SaveChangesAsync(ct);
         return true;
     }
@@ -149,9 +200,7 @@ internal sealed class UnlinkTelegramHandler(IAppDbContext db)
     public async ValueTask<bool> Handle(UnlinkTelegramCommand command, CancellationToken ct)
     {
         var chat = await db.TelegramChats.FirstOrDefaultAsync(c => c.Id == command.Id, ct);
-        if (chat is null)
-            return false;
-
+        if (chat is null) return false;
         db.TelegramChats.Remove(chat);
         await db.SaveChangesAsync(ct);
         return true;

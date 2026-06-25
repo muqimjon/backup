@@ -76,14 +76,21 @@ public sealed class TelegramPoller(
             var label = chat.TryGetProperty("username", out var un) ? un.GetString()
                 : chat.TryGetProperty("first_name", out var fn) ? fn.GetString() : null;
 
-            await HandleStart(http, db, token, chatId, label, ct);
+            string? lang = null;
+            if (msg.TryGetProperty("from", out var fromEl) && fromEl.TryGetProperty("language_code", out var lcEl))
+            {
+                var lc = lcEl.GetString()?.Split('-')[0];
+                lang = lc is "ru" or "uz" or "en" ? lc : null;
+            }
+
+            await HandleStart(http, db, token, chatId, label, lang, ct);
         }
 
         if (maxId != offset)
             await settings.SetAsync(OffsetKey, maxId.ToString(), ct);
     }
 
-    private async Task HandleStart(HttpClient http, AppDbContext db, string token, string chatId, string? label, CancellationToken ct)
+    private async Task HandleStart(HttpClient http, AppDbContext db, string token, string chatId, string? label, string? lang, CancellationToken ct)
     {
         var existing = await db.TelegramChats.FirstOrDefaultAsync(c => c.ChatId == chatId, ct);
         if (existing is { Confirmed: true })
@@ -94,11 +101,12 @@ public sealed class TelegramPoller(
 
         var code = Random.Shared.Next(0, 1_000_000).ToString("D6");
         if (existing is null)
-            db.TelegramChats.Add(new TelegramChat { ChatId = chatId, Label = label, Code = code, Confirmed = false });
+            db.TelegramChats.Add(new TelegramChat { ChatId = chatId, Label = label, Lang = lang, Code = code, Confirmed = false });
         else
         {
             existing.Code = code;
             existing.Label = label;
+            existing.Lang = lang;
         }
         await db.SaveChangesAsync(ct);
 

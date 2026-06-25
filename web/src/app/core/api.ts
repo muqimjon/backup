@@ -33,6 +33,7 @@ export class Api {
 
   agents() { return this.http.get<AgentDto[]>('/api/agents'); }
   deleteAgent(id: string) { return this.http.delete<boolean>(`/api/agents/${id}`); }
+  setAgentEnabled(id: string, enabled: boolean) { return this.http.put<boolean>(`/api/agents/${id}/enabled`, enabled); }
   enqueue(agentId: string, kind: CommandKind, jobId: string | null = null) {
     return this.http.post<string>(`/api/agents/${agentId}/enqueue`, { kind, jobId });
   }
@@ -53,12 +54,15 @@ export class Api {
 
   notifications() { return this.http.get<NotificationSettingsDto>('/api/notifications'); }
   saveNotifyMode(notifyOn: string) { return this.http.put<boolean>('/api/notifications/mode', { notifyOn }); }
-  saveEmail(body: { smtpHost: string | null; smtpPort: number | null; smtpUser: string | null; smtpPass: string | null; smtpFrom: string | null; smtpTo: string | null; }) {
+  saveEmail(body: { smtpHost: string | null; smtpPort: number | null; smtpUser: string | null; smtpPass: string | null; smtpFrom: string | null; }) {
     return this.http.put<boolean>('/api/notifications/email', body);
   }
+  addRecipient(email: string, name: string | null, lang: string | null) { return this.http.post<string>('/api/notifications/email/recipients', { email, name, lang }); }
+  removeRecipient(id: string) { return this.http.delete<boolean>(`/api/notifications/email/recipients/${id}`); }
   saveWebhook(webhookUrl: string | null) { return this.http.put<boolean>('/api/notifications/webhook', { webhookUrl }); }
   saveTelegramToken(telegramBotToken: string | null) { return this.http.put<boolean>('/api/notifications/telegram/token', { telegramBotToken }); }
   linkTelegram(code: string) { return this.http.post<boolean>('/api/notifications/telegram/link', { code }); }
   unlinkTelegram(id: string) { return this.http.delete<boolean>(`/api/notifications/telegram/${id}`); }
+  setChatLang(id: string, lang: string | null) { return this.http.put<boolean>(`/api/notifications/telegram/${id}/lang`, lang); }
   testNotification() { return this.http.post<string>('/api/notifications/test', {}); }
 }

@@ -17,6 +17,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Setting> Settings => Set<Setting>();
     public DbSet<BackupArtifact> Artifacts => Set<BackupArtifact>();
     public DbSet<TelegramChat> TelegramChats => Set<TelegramChat>();
+    public DbSet<EmailRecipient> EmailRecipients => Set<EmailRecipient>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -31,6 +32,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         builder.Entity<AgentCommand>().HasIndex(c => new { c.AgentId, c.AckedAt });
         builder.Entity<Setting>().HasIndex(s => s.Key).IsUnique();
         builder.Entity<BackupArtifact>().HasIndex(a => new { a.JobId, a.FileName }).IsUnique();
+        builder.Entity<EmailRecipient>().HasIndex(e => e.Email).IsUnique();
 
         builder.Entity<BackupJob>()
             .HasOne(j => j.Source).WithMany().HasForeignKey(j => j.SourceId)

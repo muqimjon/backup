@@ -26,8 +26,8 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
           <div class="card job">
             <div class="jhead">
               <div>
-                <div class="jname">{{ j.name }} @if (!j.enabled) { <span class="off">paused</span> }</div>
-                <div class="what">Backs up <b>{{ srcName(j) }}</b> → <b>{{ j.remoteName }}</b></div>
+                <div class="jname">{{ j.name }} @if (!j.enabled) { <span class="off">{{ lang.t('j.paused') }}</span> }</div>
+                <div class="what">{{ lang.t('j.backsUp') }} <b>{{ srcName(j) }}</b> → <b>{{ j.remoteName }}</b></div>
               </div>
               <div class="spacer"></div>
               <a class="ghost btn" [routerLink]="['/backups', j.id]">{{ lang.t('btn.versions') }}</a>
@@ -35,10 +35,10 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
               <button class="ghost danger" (click)="remove(j)">{{ lang.t('btn.delete') }}</button>
             </div>
             <div class="meta">
-              <span title="backup schedule (cron)">🕒 {{ j.backupSchedule }}</span>
-              <span>📦 keeps {{ j.minLocalBackups }}–{{ j.maxLocalBackups }} local · {{ j.maxRemoteBackups }} remote</span>
-              <span>🗜️ zip level {{ j.compressionLevel }}</span>
-              @if (j.drillSchedule) { <span title="restore-drill schedule">🧪 drill {{ j.drillSchedule }}</span> }
+              <span title="cron">🕒 {{ j.backupSchedule }}</span>
+              <span>📦 {{ lang.t('j.keeps') }} {{ j.minLocalBackups }}–{{ j.maxLocalBackups }} {{ lang.t('j.local') }} · {{ j.maxRemoteBackups }} {{ lang.t('j.remote') }}</span>
+              <span>🗜️ {{ lang.t('j.zip') }} {{ j.compressionLevel }}</span>
+              @if (j.drillSchedule) { <span title="drill cron">🧪 {{ lang.t('j.drill') }} {{ j.drillSchedule }}</span> }
               <span class="agent">{{ agentName(j) }}</span>
             </div>
             @if (j.agentId) {
@@ -48,7 +48,7 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
                 <button class="ghost sm" (click)="drill(j)">{{ lang.t('btn.drill') }}</button>
               </div>
             } @else {
-              <div class="acts"><span class="muted">No agent assigned — edit the job to pick one.</span></div>
+              <div class="acts"><span class="muted">{{ lang.t('j.noAgent') }}</span></div>
             }
           </div>
         }
@@ -71,7 +71,7 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
               <div><label>{{ lang.t('f.agent') }}</label>
                 <select [(ngModel)]="form.agentId">
                   <option [ngValue]="null">— unassigned —</option>
-                  @for (a of agents(); track a.id) { <option [ngValue]="a.id">{{ a.name }} ({{ a.project }})</option> }
+                  @for (a of enabledAgents(); track a.id) { <option [ngValue]="a.id">{{ a.name }} ({{ a.project }})</option> }
                 </select>
               </div>
               <div><label>{{ lang.t('f.source') }}</label>
@@ -171,6 +171,8 @@ export class Jobs {
 
   load() { this.api.jobs().subscribe(j => this.items.set(j)); }
 
+  enabledAgents() { return this.agents().filter(a => a.enabled); }
+
   srcName(j: JobDto) { return j.sourceName; }
   agentName(j: JobDto) {
     if (!j.agentId) return '🖥️ no agent';
@@ -180,7 +182,7 @@ export class Jobs {
   openNew() {
     this.editingId.set(null);
     this.form = this.empty();
-    if (this.agents().length === 1) this.form.agentId = this.agents()[0].id;
+    if (this.enabledAgents().length === 1) this.form.agentId = this.enabledAgents()[0].id;
     this.enabled = true;
     this.error.set(null);
     this.formOpen.set(true);

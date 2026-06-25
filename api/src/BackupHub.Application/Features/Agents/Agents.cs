@@ -77,6 +77,13 @@ internal sealed class GetAgentJobsHandler(IAppDbContext db, ISecretProtector pro
 {
     public async ValueTask<IReadOnlyList<AgentJobDto>> Handle(GetAgentJobsQuery query, CancellationToken ct)
     {
+        var agentEnabled = await db.Agents
+            .Where(a => a.Id == query.AgentId)
+            .Select(a => a.Enabled)
+            .FirstOrDefaultAsync(ct);
+        if (!agentEnabled)
+            return [];
+
         var jobs = await db.Jobs
             .Where(j => j.AgentId == query.AgentId && j.Enabled)
             .Include(j => j.Source)

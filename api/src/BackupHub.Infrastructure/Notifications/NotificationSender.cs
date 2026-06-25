@@ -37,21 +37,19 @@ public sealed class NotificationSender(HttpClient http, ISettingsService setting
         if (mode == "never") return;
         if (mode == "failure" && level != "error") return;
 
-        var lang = await ResolveLang(ct);
-        var runWord = RunWords[lang].GetValueOrDefault(type, type.ToString());
-        var (ok, fail, _) = Words[lang];
-        var title = $"{project} · {runWord} {(status == RunStatus.Fail ? fail : ok)}";
-        var body = $"{driver}: {message ?? runWord}";
-
-        await SendAll(cfg, level, title, body, ct);
+        await Send(cfg, level, lang =>
+        {
+            var runWord = RunWords[lang].GetValueOrDefault(type, type.ToString());
+            var (ok, fail, _) = Words[lang];
+            return ($"{project} · {runWord} {(status == RunStatus.Fail ? fail : ok)}", $"{driver}: {message ?? runWord}");
+        }, ct);
     }
 
     public async Task<string> SendTestAsync(CancellationToken ct = default)
     {
         var cfg = await settings.GetManyAsync(NotificationKeys.All, ct);
-        var lang = await ResolveLang(ct);
-        var sent = await SendAll(cfg, "info", "BackupHub", Words[lang].Test, ct);
-        return sent.Count == 0 ? "No channels configured." : "Sent via: " + string.Join(", ", sent);
+        var sent = await Send(cfg, "info", lang => ("BackupHub", Words[lang].Test), ct);
+        return sent.Count == 0 ? "No channels configured (add a recipient/chat first)." : "Sent via: " + string.Join(", ", sent);
     }
 
     public async Task<string?> ValidateTelegramTokenAsync(string token, CancellationToken ct = default)
@@ -61,77 +59,77 @@ public sealed class NotificationSender(HttpClient http, ISettingsService setting
             using var res = await http.GetAsync($"https://api.telegram.org/bot{token}/getMe", ct);
             if (!res.IsSuccessStatusCode) return "Telegram rejected this bot token.";
             using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
-            return doc.RootElement.TryGetProperty("ok", out var okEl) && okEl.GetBoolean()
-                ? null
-                : "Telegram rejected this bot token.";
+            return doc.RootElement.TryGetProperty("ok", out var ok) && ok.GetBoolean() ? null : "Telegram rejected this bot token.";
         }
-        catch
-        {
-            return "Could not reach Telegram to verify the token.";
-        }
+        catch { return "Could not reach Telegram to verify the token."; }
     }
 
-    private async Task<string> ResolveLang(CancellationToken ct)
+    private async Task<List<string>> Send(IReadOnlyDictionary<string, string> cfg, string level, Func<string, (string Title, string Body)> build, CancellationToken ct)
     {
-        var lang = await settings.GetAsync(LangKey, ct);
-        return lang is "ru" or "uz" ? lang : "en";
-    }
-
-    private async Task<List<string>> SendAll(IReadOnlyDictionary<string, string> cfg, string level, string title, string message, CancellationToken ct)
-    {
+        var appLang = await ResolveLang(ct);
         var icon = level switch { "error" => "🔴", "success" => "✅", _ => "ℹ️" };
-        var text = $"{icon} {title}\n{message}";
+        string Norm(string? l) => l is "ru" or "uz" or "en" ? l : appLang;
         var sent = new List<string>();
 
         if (cfg.TryGetValue(NotificationKeys.TelegramBotToken, out var token) && !string.IsNullOrWhiteSpace(token))
-            if (await SendTelegram(token, text, ct)) sent.Add("Telegram");
+        {
+            var chats = await db.TelegramChats.Where(c => c.Confirmed).Select(c => new { c.ChatId, c.Lang }).ToListAsync(ct);
+            var ok = false;
+            foreach (var chat in chats)
+            {
+                var (title, body) = build(Norm(chat.Lang));
+                ok |= await SendTelegram(token, chat.ChatId, $"{icon} {title}\n{body}", ct);
+            }
+            if (ok) sent.Add("Telegram");
+        }
 
         if (cfg.TryGetValue(NotificationKeys.SmtpHost, out var host) && !string.IsNullOrWhiteSpace(host))
-            if (await SendEmail(cfg, title, text, ct)) sent.Add("Email");
+        {
+            var recipients = await db.EmailRecipients.Select(r => new { r.Email, r.Lang }).ToListAsync(ct);
+            var ok = false;
+            foreach (var r in recipients)
+            {
+                var (title, body) = build(Norm(r.Lang));
+                ok |= await SendEmail(cfg, r.Email, title, $"{icon} {title}\n{body}", ct);
+            }
+            if (ok) sent.Add("Email");
+        }
 
         if (cfg.TryGetValue(NotificationKeys.WebhookUrl, out var url) && !string.IsNullOrWhiteSpace(url))
-            if (await SendWebhook(url, level, title, message, ct)) sent.Add("Webhook");
+        {
+            var (title, body) = build(appLang);
+            if (await SendWebhook(url, level, title, body, ct)) sent.Add("Webhook");
+        }
 
         return sent;
     }
 
-    private async Task<bool> SendTelegram(string token, string text, CancellationToken ct)
+    private async Task<bool> SendTelegram(string token, string chatId, string text, CancellationToken ct)
     {
         try
         {
-            var chats = await db.TelegramChats.Where(c => c.Confirmed).Select(c => c.ChatId).ToListAsync(ct);
-            if (chats.Count == 0) return false;
-            var ok = false;
-            foreach (var chatId in chats)
-            {
-                var url = $"https://api.telegram.org/bot{token}/sendMessage";
-                var payload = JsonBody($"{{\"chat_id\":\"{chatId}\",\"text\":{JsonSerializer.Serialize(text)},\"disable_web_page_preview\":true}}");
-                using var res = await http.PostAsync(url, payload, ct);
-                ok |= res.IsSuccessStatusCode;
-            }
-            return ok;
+            var url = $"https://api.telegram.org/bot{token}/sendMessage";
+            var payload = JsonBody($"{{\"chat_id\":\"{chatId}\",\"text\":{JsonSerializer.Serialize(text)},\"disable_web_page_preview\":true}}");
+            using var res = await http.PostAsync(url, payload, ct);
+            return res.IsSuccessStatusCode;
         }
         catch { return false; }
     }
 
-    private async Task<bool> SendEmail(IReadOnlyDictionary<string, string> cfg, string subject, string body, CancellationToken ct)
+    private async Task<bool> SendEmail(IReadOnlyDictionary<string, string> cfg, string to, string subject, string body, CancellationToken ct)
     {
         try
         {
             var host = cfg[NotificationKeys.SmtpHost];
             var port = int.TryParse(cfg.GetValueOrDefault(NotificationKeys.SmtpPort), out var p) ? p : 587;
             var from = cfg.GetValueOrDefault(NotificationKeys.SmtpFrom, cfg.GetValueOrDefault(NotificationKeys.SmtpUser, ""));
-            var to = cfg.GetValueOrDefault(NotificationKeys.SmtpTo, from);
-            if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to)) return false;
+            if (string.IsNullOrWhiteSpace(from)) return false;
 
             using var client = new SmtpClient(host, port) { EnableSsl = true };
             if (cfg.TryGetValue(NotificationKeys.SmtpUser, out var user) && !string.IsNullOrWhiteSpace(user))
                 client.Credentials = new NetworkCredential(user, cfg.GetValueOrDefault(NotificationKeys.SmtpPass, ""));
 
-            using var mail = new MailMessage { From = new MailAddress(from), Subject = subject, Body = body };
-            foreach (var rcpt in to.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                mail.To.Add(rcpt);
-
+            using var mail = new MailMessage(from, to, subject, body);
             await client.SendMailAsync(mail, ct);
             return true;
         }
@@ -147,6 +145,12 @@ public sealed class NotificationSender(HttpClient http, ISettingsService setting
             return res.IsSuccessStatusCode;
         }
         catch { return false; }
+    }
+
+    private async Task<string> ResolveLang(CancellationToken ct)
+    {
+        var lang = await settings.GetAsync(LangKey, ct);
+        return lang is "ru" or "uz" ? lang : "en";
     }
 
     private static StringContent JsonBody(string json) => new(json, Encoding.UTF8, "application/json");

@@ -22,6 +22,14 @@ public sealed class NotificationsController(ISender mediator) : ApiController(me
     public async Task<ActionResult<bool>> Email(UpdateEmailCommand command, CancellationToken ct)
         => Ok(await Mediator.Send(command, ct));
 
+    [HttpPost("email/recipients")]
+    public async Task<ActionResult<Guid>> AddRecipient(AddEmailRecipientCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command, ct));
+
+    [HttpDelete("email/recipients/{id:guid}")]
+    public async Task<ActionResult<bool>> RemoveRecipient(Guid id, CancellationToken ct)
+        => Ok(await Mediator.Send(new RemoveEmailRecipientCommand(id), ct));
+
     [HttpPut("webhook")]
     public async Task<ActionResult<bool>> Webhook(UpdateWebhookCommand command, CancellationToken ct)
         => Ok(await Mediator.Send(command, ct));
@@ -29,6 +37,10 @@ public sealed class NotificationsController(ISender mediator) : ApiController(me
     [HttpPut("telegram/token")]
     public async Task<ActionResult<bool>> TelegramToken(UpdateTelegramTokenCommand command, CancellationToken ct)
         => Ok(await Mediator.Send(command, ct));
+
+    [HttpPut("telegram/{id:guid}/lang")]
+    public async Task<ActionResult<bool>> ChatLang(Guid id, [FromBody] string? lang, CancellationToken ct)
+        => Ok(await Mediator.Send(new SetTelegramChatLangCommand(id, lang), ct));
 
     [HttpPost("telegram/link")]
     public async Task<ActionResult<bool>> Link(LinkRequest body, CancellationToken ct)

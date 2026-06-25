@@ -22,30 +22,30 @@ import { formatBytes, runTypeLabel, statusClass, statusLabel } from '../../core/
     </div>
 
     <div class="stats">
-      <div class="card stat"><div class="n">{{ stats()?.agents ?? 0 }}</div><div class="muted">Agents</div></div>
-      <div class="card stat"><div class="n">{{ stats()?.jobs ?? 0 }}</div><div class="muted">Jobs</div></div>
-      <div class="card stat"><div class="n ok">{{ stats()?.ok24h ?? 0 }}</div><div class="muted">OK · 24h</div></div>
-      <div class="card stat"><div class="n fail">{{ stats()?.fail24h ?? 0 }}</div><div class="muted">Failed · 24h</div></div>
+      <div class="card stat"><div class="n">{{ stats()?.agents ?? 0 }}</div><div class="muted">{{ lang.t('d.agents') }}</div></div>
+      <div class="card stat"><div class="n">{{ stats()?.jobs ?? 0 }}</div><div class="muted">{{ lang.t('d.jobs') }}</div></div>
+      <div class="card stat"><div class="n ok">{{ stats()?.ok24h ?? 0 }}</div><div class="muted">{{ lang.t('d.ok24h') }}</div></div>
+      <div class="card stat"><div class="n fail">{{ stats()?.fail24h ?? 0 }}</div><div class="muted">{{ lang.t('d.fail24h') }}</div></div>
     </div>
 
     <div class="stats">
       <div class="card stat">
-        <div class="label">Last backup size</div>
+        <div class="label">{{ lang.t('d.lastSize') }}</div>
         <div class="big">{{ formatBytes(stats()?.lastBackupBytes ?? 0) }}</div>
       </div>
       <div class="card stat">
-        <div class="label">Last success</div>
+        <div class="label">{{ lang.t('d.lastSuccess') }}</div>
         <div class="big">{{ stats()?.lastSuccessAt ? (stats()!.lastSuccessAt | date: 'short') : '—' }}</div>
       </div>
       <div class="card stat drill">
-        <div class="label">Restore verified</div>
+        <div class="label">{{ lang.t('d.restoreVerified') }}</div>
         @if (stats()?.lastDrillAt) {
           <div class="big" [class.ok]="drillOk()" [class.fail]="!drillOk()">
-            {{ drillOk() ? '✓ passed' : '✗ failed' }}
+            {{ drillOk() ? lang.t('d.passed') : lang.t('d.failed') }}
           </div>
           <div class="muted">{{ stats()!.lastDrillAt | date: 'short' }}</div>
         } @else {
-          <div class="big muted">not run yet</div>
+          <div class="big muted">{{ lang.t('d.notRun') }}</div>
         }
       </div>
     </div>
@@ -53,7 +53,7 @@ import { formatBytes, runTypeLabel, statusClass, statusLabel } from '../../core/
     <div class="card">
       <h3>{{ lang.t('recentRuns') }}</h3>
       @if (runs().length === 0) {
-        <p class="muted">No runs yet. Once an agent runs a backup it will appear here.</p>
+        <p class="muted">{{ lang.t('d.noRuns') }}</p>
       } @else {
         <table>
           <thead><tr><th>Status</th><th>Type</th><th>Job</th><th>Size</th><th>Started</th></tr></thead>

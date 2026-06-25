@@ -15,6 +15,7 @@ public interface IAppDbContext
     DbSet<Setting> Settings { get; }
     DbSet<BackupArtifact> Artifacts { get; }
     DbSet<TelegramChat> TelegramChats { get; }
+    DbSet<EmailRecipient> EmailRecipients { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -45,4 +45,9 @@ public sealed class AgentsController(ISender mediator) : ApiController(mediator)
     [HttpDelete("{id:guid}")]
     public async Task<ActionResult<bool>> Delete(Guid id, CancellationToken ct)
         => Ok(await Mediator.Send(new Application.Features.Management.DeleteAgentCommand(id), ct));
+
+    [Authorize]
+    [HttpPut("{id:guid}/enabled")]
+    public async Task<ActionResult<bool>> SetEnabled(Guid id, [FromBody] bool enabled, CancellationToken ct)
+        => Ok(await Mediator.Send(new SetAgentEnabledCommand(id, enabled), ct));
 }
