@@ -10,7 +10,7 @@ readonly BACKUP_DIR="${BACKUP_DIR:-/backup}"
 source /usr/local/bin/lib.sh
 
 job_id="${1:?Usage: deliver.sh <job-id> <file>}"
-file="${2:?file required}"
+file=$(basename "${2:?file required}")   # bare filename only — no path traversal
 env_file="${BACKUP_DIR}/jobs/${job_id}.env"
 
 [ -f "$env_file" ] || error_exit "Job env not found for ${job_id}"

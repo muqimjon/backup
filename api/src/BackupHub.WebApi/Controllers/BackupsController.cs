@@ -57,7 +57,7 @@ public sealed class BackupsController(ISender mediator) : ApiController(mediator
         if (!System.IO.File.Exists(path))
             return NotFound();
 
-        var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 8192, FileOptions.DeleteOnClose);
+        var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 8192, FileOptions.Asynchronous);
         return File(stream, "application/zip", Path.GetFileName(file));
     }
 }

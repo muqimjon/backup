@@ -11,7 +11,10 @@ readonly BACKUP_DIR="${BACKUP_DIR:-/backup}"
 source /usr/local/bin/lib.sh
 
 job_id="${1:?Usage: restore-job.sh <job-id> <file> <snapshot>}"
-file="${2:?file required}"
+# Reduce to a bare filename — the archive always lives directly in BACKUP_DIR / the
+# remote path. Strip any directory components so a crafted command can't escape
+# (path traversal) into arbitrary local or remote paths.
+file=$(basename "${2:?file required}")
 snapshot="${3:-false}"
 env_file="${BACKUP_DIR}/jobs/${job_id}.env"
 
@@ -28,7 +31,10 @@ log "Restore requested: ${file}  (snapshot-first: ${snapshot})"
 
 if [ "$snapshot" = "true" ] || [ "$snapshot" = "1" ]; then
     log "Snapshotting current state before rollback…"
-    UPLOAD_SCHEDULE="" /usr/local/bin/backup.sh || error_exit "Pre-restore snapshot failed"
+    # Run as a Backup (RUN_TYPE=0) so a snapshot failure is reported as a backup, not a
+    # restore. If it fails, abort the restore WITHOUT a second misleading "Restore failed".
+    RUN_TYPE=0 UPLOAD_SCHEDULE="" /usr/local/bin/backup.sh \
+        || { log "Pre-restore snapshot failed — aborting restore (live DB untouched)"; exit 1; }
 fi
 
 target="${BACKUP_DIR}/${file}"

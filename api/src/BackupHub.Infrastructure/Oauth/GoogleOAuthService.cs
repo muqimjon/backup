@@ -52,8 +52,8 @@ public sealed class GoogleOAuthService(HttpClient http, ISettingsService setting
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
         var root = doc.RootElement;
         var accessToken = root.GetProperty("access_token").GetString();
-        var refreshToken = root.GetProperty("refresh_token").GetString();
-        var expiresIn = root.GetProperty("expires_in").GetInt32();
+        var refreshToken = root.TryGetProperty("refresh_token", out var rt) ? rt.GetString() : null;
+        var expiresIn = root.TryGetProperty("expires_in", out var ei) ? ei.GetInt32() : 3600;
         var expiry = DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToString("yyyy-MM-ddTHH:mm:ss.fffffffzzz");
 
         return JsonSerializer.Serialize(new

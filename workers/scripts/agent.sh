@@ -57,6 +57,7 @@ write_job_env() {
         case "$engine" in
             0) kv BACKUP_DRIVER postgres; kv PG_HOST "$host"; kv PG_PORT "$port"; kv PG_USER "$user"; kv PG_PASSWORD "$secret"; kv PG_DATABASE "$target" ;;
             1) kv BACKUP_DRIVER mysql; kv MYSQL_HOST "$host"; kv MYSQL_PORT "$port"; kv MYSQL_USER "$user"; kv MYSQL_PASSWORD "$secret"; kv MYSQL_DATABASE "$target" ;;
+            2) kv BACKUP_DRIVER mssql; kv MSSQL_HOST "$host"; kv MSSQL_PORT "$port"; kv MSSQL_USER "$user"; kv MSSQL_PASSWORD "$secret"; kv MSSQL_DATABASE "$target" ;;
             3) kv BACKUP_DRIVER minio; kv MINIO_ENDPOINT "$host"; kv MINIO_ACCESS_KEY "$user"; kv MINIO_SECRET_KEY "$secret"; kv MINIO_BUCKET "$target" ;;
             *) kv BACKUP_DRIVER postgres ;;
         esac

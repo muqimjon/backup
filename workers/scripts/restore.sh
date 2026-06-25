@@ -40,17 +40,14 @@ case "$driver" in
     postgres)
         : "${PG_HOST:?PG_HOST is required}" "${PG_USER:?}" "${PG_DATABASE:?}"
         export PGPASSWORD="${PG_PASSWORD:-}"
-        # Replace, don't merge: wipe the schema so the dump restores into a clean DB.
-        # Without this, a plain dump's CREATE statements collide with existing objects.
-        log "Resetting target schema for a clean restore…"
-        psql --host="$PG_HOST" --port="${PG_PORT:-5432}" \
-            --username="$PG_USER" --dbname="$PG_DATABASE" --no-password -v ON_ERROR_STOP=1 \
-            -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;" \
-            || error_exit "Could not reset target schema"
+        # Atomic restore: the dump (pg_dump --clean --if-exists) drops & recreates every
+        # object inside ONE transaction. --single-transaction means any failure (corrupt
+        # archive, mid-stream abort) ROLLS BACK — the live database is left untouched.
+        # Never destroy existing data before the new dump is proven loadable.
         "${extract[@]}" | psql \
             --host="$PG_HOST" --port="${PG_PORT:-5432}" \
             --username="$PG_USER" --dbname="$PG_DATABASE" \
-            --no-password -v ON_ERROR_STOP=1
+            --no-password --single-transaction -v ON_ERROR_STOP=1
         ;;
     mysql)
         : "${MYSQL_HOST:?MYSQL_HOST is required}" "${MYSQL_USER:?}" "${MYSQL_DATABASE:?}"
