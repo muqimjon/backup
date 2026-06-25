@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { Api } from '../../core/api';
+import { Lang } from '../../core/lang';
 import { AgentDto } from '../../core/models';
 
 @Component({
@@ -9,9 +10,9 @@ import { AgentDto } from '../../core/models';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="row">
-      <div><h1>Agents</h1><p class="muted">Worker containers that run your backups</p></div>
+      <div><h1>{{ lang.t('agents.title') }}</h1><p class="muted">{{ lang.t('agents.subtitle') }}</p></div>
       <div class="spacer"></div>
-      <button class="ghost" (click)="load()">Refresh</button>
+      <button class="ghost" (click)="load()">{{ lang.t('btn.refresh') }}</button>
     </div>
 
     @if (notice()) { <div class="notice">{{ notice() }}</div> }
@@ -40,7 +41,7 @@ import { AgentDto } from '../../core/models';
                 <td>{{ a.project }}</td>
                 <td class="muted">{{ a.version }}</td>
                 <td class="muted">{{ a.lastSeenAt ? (a.lastSeenAt | date: 'short') : 'never' }}</td>
-                <td class="right"><button class="ghost danger" (click)="remove(a)">Remove</button></td>
+                <td class="right"><button class="ghost danger" (click)="remove(a)">{{ lang.t('btn.remove') }}</button></td>
               </tr>
             }
           </tbody>
@@ -63,6 +64,7 @@ import { AgentDto } from '../../core/models';
 })
 export class Agents {
   private api = inject(Api);
+  lang = inject(Lang);
   items = signal<AgentDto[]>([]);
   notice = signal<string | null>(null);
 

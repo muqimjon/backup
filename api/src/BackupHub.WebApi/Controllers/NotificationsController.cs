@@ -14,8 +14,20 @@ public sealed class NotificationsController(ISender mediator) : ApiController(me
     public async Task<ActionResult<NotificationSettingsDto>> Get(CancellationToken ct)
         => Ok(await Mediator.Send(new GetNotificationSettingsQuery(), ct));
 
-    [HttpPut]
-    public async Task<ActionResult<bool>> Update(UpdateNotificationSettingsCommand command, CancellationToken ct)
+    [HttpPut("mode")]
+    public async Task<ActionResult<bool>> Mode(UpdateNotifyModeCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command, ct));
+
+    [HttpPut("email")]
+    public async Task<ActionResult<bool>> Email(UpdateEmailCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command, ct));
+
+    [HttpPut("webhook")]
+    public async Task<ActionResult<bool>> Webhook(UpdateWebhookCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command, ct));
+
+    [HttpPut("telegram/token")]
+    public async Task<ActionResult<bool>> TelegramToken(UpdateTelegramTokenCommand command, CancellationToken ct)
         => Ok(await Mediator.Send(command, ct));
 
     [HttpPost("telegram/link")]

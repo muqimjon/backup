@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, effect, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { Api } from '../../core/api';
+import { Lang } from '../../core/lang';
 import { Live } from '../../core/live';
 import { RunDto, RunStatus, StatsDto } from '../../core/models';
 import { formatBytes, runTypeLabel, statusClass, statusLabel } from '../../core/format';
@@ -12,8 +13,8 @@ import { formatBytes, runTypeLabel, statusClass, statusLabel } from '../../core/
   template: `
     <div class="head">
       <div>
-        <h1>Dashboard</h1>
-        <p class="muted">Overview of your backups</p>
+        <h1>{{ lang.t('dash.title') }}</h1>
+        <p class="muted">{{ lang.t('dash.subtitle') }}</p>
       </div>
       <span class="live" [class.on]="live.connected()">
         {{ live.connected() ? 'live' : 'offline' }}
@@ -91,6 +92,7 @@ import { formatBytes, runTypeLabel, statusClass, statusLabel } from '../../core/
 export class Dashboard implements OnInit, OnDestroy {
   private api = inject(Api);
   protected live = inject(Live);
+  lang = inject(Lang);
 
   stats = signal<StatsDto | null>(null);
   runs = signal<RunDto[]>([]);

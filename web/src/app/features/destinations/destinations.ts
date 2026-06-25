@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Api } from '../../core/api';
 import { RemoteDto } from '../../core/models';
 import { remoteTypeLabel } from '../../core/format';
+import { Lang } from '../../core/lang';
 import { Modal } from '../../shared/modal';
 
 type Kind = 'gdrive' | 's3' | 'b2' | 'sftp' | 'webdav' | 'custom';
@@ -22,9 +23,9 @@ const CATALOG: Record<Kind, { title: string; covers: string }> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="row">
-      <div><h1>Destinations</h1><p class="muted">Where backups are uploaded — powered by rclone (70+ clouds)</p></div>
+      <div><h1>{{ lang.t('dest.title') }}</h1><p class="muted">{{ lang.t('dest.subtitle') }}</p></div>
       <div class="spacer"></div>
-      <button (click)="open()">+ Add destination</button>
+      <button (click)="open()">{{ lang.t('dest.add') }}</button>
     </div>
 
     <div class="card">
@@ -58,16 +59,19 @@ const CATALOG: Record<Kind, { title: string; covers: string }> = {
 
         @switch (kind()) {
           @case ('gdrive') {
-            @if (googleConfigured()) {
+            @if (googleConfigured() && !editGoogle()) {
+              <p class="ok-note">✓ Google OAuth app configured. <a class="lnk" (click)="editGoogle.set(true)">Change credentials</a></p>
               <label>Name</label><input [(ngModel)]="name" />
               <label>Folder path</label><input [(ngModel)]="path" placeholder="backups/myapp" />
               <button class="g" (click)="connectGoogle()" [disabled]="busy()">{{ busy() ? 'Redirecting…' : 'Connect Google Drive' }}</button>
+              <p class="hint">Clicking Connect opens Google's consent screen. After you approve, the Drive is linked <b>automatically</b> — no token to copy or paste.</p>
             } @else {
-              <div class="setup">
-                <p class="hint">First-time setup: paste your Google OAuth app credentials (create them once in Google Cloud — Drive API + consent screen, redirect URI <code>{{ origin }}/api/remotes/google/callback</code>).</p>
-                <label>Client ID</label><input [(ngModel)]="gClientId" placeholder="xxxx.apps.googleusercontent.com" />
-                <label>Client Secret</label><input type="password" [(ngModel)]="gClientSecret" />
+              <p class="hint">One-time setup: create an OAuth client in Google Cloud (enable Drive API, configure the consent screen → Production), with redirect URI <code>{{ origin }}/api/remotes/google/callback</code>, then paste its credentials here. After saving, click Connect to authorize a Drive.</p>
+              <label>Client ID</label><input [(ngModel)]="gClientId" placeholder="xxxx.apps.googleusercontent.com" />
+              <label>Client Secret</label><input type="password" [(ngModel)]="gClientSecret" />
+              <div class="row" style="gap:10px;margin-top:16px">
                 <button (click)="saveGoogleCreds()" [disabled]="busy()">Save credentials</button>
+                @if (googleConfigured()) { <button class="ghost" (click)="editGoogle.set(false)">Cancel</button> }
               </div>
             }
           }
@@ -143,6 +147,8 @@ const CATALOG: Record<Kind, { title: string; covers: string }> = {
     textarea { font: 13px/1.5 monospace; width: 100%; padding: 10px 12px; background: var(--surface-2);
                border: 1px solid var(--border); border-radius: 8px; color: var(--text); resize: vertical; }
     .hint { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+    .ok-note { font-size: 13px; color: var(--ok); margin: 0 0 8px; }
+    .lnk { color: var(--primary); cursor: pointer; text-decoration: underline; }
     button { margin-top: 16px; }
     button.g { background: #fff; color: #222; }
     button.danger { color: var(--fail); border-color: var(--fail); margin-top: 0; }
@@ -152,6 +158,7 @@ const CATALOG: Record<Kind, { title: string; covers: string }> = {
 })
 export class Destinations {
   protected api = inject(Api);
+  lang = inject(Lang);
   protected catalog = CATALOG;
   protected kinds: Kind[] = ['gdrive', 's3', 'b2', 'sftp', 'webdav', 'custom'];
   protected origin = location.origin;
@@ -162,6 +169,7 @@ export class Destinations {
   busy = signal(false);
   error = signal<string | null>(null);
   googleConfigured = signal(false);
+  editGoogle = signal(false);
 
   name = 's3';
   path = 'backups/myapp';
@@ -199,7 +207,7 @@ export class Destinations {
     if (!this.gClientId || !this.gClientSecret) return;
     this.busy.set(true);
     this.api.updateGoogle(this.gClientId, this.gClientSecret).subscribe({
-      next: () => { this.busy.set(false); this.googleConfigured.set(true); },
+      next: () => { this.busy.set(false); this.googleConfigured.set(true); this.editGoogle.set(false); this.gClientSecret = ''; },
       error: e => { this.busy.set(false); this.error.set(this.msg(e)); },
     });
   }

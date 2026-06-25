@@ -4,7 +4,6 @@ import {
   AgentDto, BackupVersionDto, CommandKind, CreateB2Remote, CreateCustomRemote, CreateJob,
   CreateS3Remote, CreateSftpRemote, CreateSource, CreateWebDavRemote, JobDto,
   NotificationSettingsDto, RemoteDto, RunDto, SettingsDto, SourceDto, StatsDto,
-  UpdateNotificationSettings,
 } from './models';
 
 @Injectable({ providedIn: 'root' })
@@ -52,7 +51,12 @@ export class Api {
   }
 
   notifications() { return this.http.get<NotificationSettingsDto>('/api/notifications'); }
-  updateNotifications(body: UpdateNotificationSettings) { return this.http.put<boolean>('/api/notifications', body); }
+  saveNotifyMode(notifyOn: string) { return this.http.put<boolean>('/api/notifications/mode', { notifyOn }); }
+  saveEmail(body: { smtpHost: string | null; smtpPort: number | null; smtpUser: string | null; smtpPass: string | null; smtpFrom: string | null; smtpTo: string | null; }) {
+    return this.http.put<boolean>('/api/notifications/email', body);
+  }
+  saveWebhook(webhookUrl: string | null) { return this.http.put<boolean>('/api/notifications/webhook', { webhookUrl }); }
+  saveTelegramToken(telegramBotToken: string | null) { return this.http.put<boolean>('/api/notifications/telegram/token', { telegramBotToken }); }
   linkTelegram(code: string) { return this.http.post<boolean>('/api/notifications/telegram/link', { code }); }
   unlinkTelegram(id: string) { return this.http.delete<boolean>(`/api/notifications/telegram/${id}`); }
   testNotification() { return this.http.post<string>('/api/notifications/test', {}); }

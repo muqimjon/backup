@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { Api } from '../../core/api';
+import { Lang } from '../../core/lang';
 import { RunDto } from '../../core/models';
 import { formatBytes, runTypeLabel, statusClass, statusLabel } from '../../core/format';
 
@@ -10,9 +11,9 @@ import { formatBytes, runTypeLabel, statusClass, statusLabel } from '../../core/
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="row">
-      <div><h1>History</h1><p class="muted">Every backup, upload, cleanup and drill</p></div>
+      <div><h1>{{ lang.t('history.title') }}</h1><p class="muted">{{ lang.t('history.subtitle') }}</p></div>
       <div class="spacer"></div>
-      <button class="ghost" (click)="load()">Refresh</button>
+      <button class="ghost" (click)="load()">{{ lang.t('btn.refresh') }}</button>
     </div>
 
     <div class="card">
@@ -44,6 +45,7 @@ import { formatBytes, runTypeLabel, statusClass, statusLabel } from '../../core/
 })
 export class History {
   private api = inject(Api);
+  lang = inject(Lang);
   items = signal<RunDto[]>([]);
 
   statusClass = statusClass;

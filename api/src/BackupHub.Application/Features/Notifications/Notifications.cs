@@ -60,35 +60,58 @@ internal sealed class GetNotificationSettingsHandler(ISettingsService settings, 
     }
 }
 
-public sealed record UpdateNotificationSettingsCommand(
-    string NotifyOn,
-    string? SmtpHost,
-    int? SmtpPort,
-    string? SmtpUser,
-    string? SmtpPass,
-    string? SmtpFrom,
-    string? SmtpTo,
-    string? WebhookUrl,
-    string? TelegramBotToken) : IRequest<bool>;
+public sealed record UpdateNotifyModeCommand(string NotifyOn) : IRequest<bool>;
 
-internal sealed class UpdateNotificationSettingsHandler(ISettingsService settings)
-    : IRequestHandler<UpdateNotificationSettingsCommand, bool>
+internal sealed class UpdateNotifyModeHandler(ISettingsService settings)
+    : IRequestHandler<UpdateNotifyModeCommand, bool>
 {
-    public async ValueTask<bool> Handle(UpdateNotificationSettingsCommand command, CancellationToken ct)
+    public async ValueTask<bool> Handle(UpdateNotifyModeCommand command, CancellationToken ct)
     {
         await settings.SetAsync(Keys.NotifyOn, string.IsNullOrWhiteSpace(command.NotifyOn) ? "failure" : command.NotifyOn, ct);
+        return true;
+    }
+}
+
+public sealed record UpdateEmailCommand(
+    string? SmtpHost, int? SmtpPort, string? SmtpUser, string? SmtpPass, string? SmtpFrom, string? SmtpTo) : IRequest<bool>;
+
+internal sealed class UpdateEmailHandler(ISettingsService settings)
+    : IRequestHandler<UpdateEmailCommand, bool>
+{
+    public async ValueTask<bool> Handle(UpdateEmailCommand command, CancellationToken ct)
+    {
         await settings.SetAsync(Keys.SmtpHost, command.SmtpHost, ct);
         await settings.SetAsync(Keys.SmtpPort, command.SmtpPort?.ToString(), ct);
         await settings.SetAsync(Keys.SmtpUser, command.SmtpUser, ct);
         await settings.SetAsync(Keys.SmtpFrom, command.SmtpFrom, ct);
         await settings.SetAsync(Keys.SmtpTo, command.SmtpTo, ct);
-        await settings.SetAsync(Keys.WebhookUrl, command.WebhookUrl, ct);
-
         if (!string.IsNullOrWhiteSpace(command.SmtpPass))
             await settings.SetAsync(Keys.SmtpPass, command.SmtpPass, ct);
+        return true;
+    }
+}
+
+public sealed record UpdateWebhookCommand(string? WebhookUrl) : IRequest<bool>;
+
+internal sealed class UpdateWebhookHandler(ISettingsService settings)
+    : IRequestHandler<UpdateWebhookCommand, bool>
+{
+    public async ValueTask<bool> Handle(UpdateWebhookCommand command, CancellationToken ct)
+    {
+        await settings.SetAsync(Keys.WebhookUrl, command.WebhookUrl, ct);
+        return true;
+    }
+}
+
+public sealed record UpdateTelegramTokenCommand(string? TelegramBotToken) : IRequest<bool>;
+
+internal sealed class UpdateTelegramTokenHandler(ISettingsService settings)
+    : IRequestHandler<UpdateTelegramTokenCommand, bool>
+{
+    public async ValueTask<bool> Handle(UpdateTelegramTokenCommand command, CancellationToken ct)
+    {
         if (!string.IsNullOrWhiteSpace(command.TelegramBotToken))
             await settings.SetAsync(Keys.TelegramBotToken, command.TelegramBotToken, ct);
-
         return true;
     }
 }

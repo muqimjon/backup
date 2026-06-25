@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Api } from '../../core/api';
+import { Lang } from '../../core/lang';
 import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '../../core/models';
 
 @Component({
@@ -10,9 +11,9 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="row">
-      <div><h1>Jobs</h1><p class="muted">A source + destination on a schedule</p></div>
+      <div><h1>{{ lang.t('jobs.title') }}</h1><p class="muted">{{ lang.t('jobs.subtitle') }}</p></div>
       <div class="spacer"></div>
-      <button (click)="openNew()">+ Add job</button>
+      <button (click)="openNew()">{{ lang.t('jobs.add') }}</button>
     </div>
 
     @if (notice()) { <div class="notice">{{ notice() }}</div> }
@@ -29,9 +30,9 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
                 <div class="what">Backs up <b>{{ srcName(j) }}</b> → <b>{{ j.remoteName }}</b></div>
               </div>
               <div class="spacer"></div>
-              <a class="ghost btn" [routerLink]="['/backups', j.id]">Versions</a>
-              <button class="ghost" (click)="edit(j)">Edit</button>
-              <button class="ghost danger" (click)="remove(j)">Delete</button>
+              <a class="ghost btn" [routerLink]="['/backups', j.id]">{{ lang.t('btn.versions') }}</a>
+              <button class="ghost" (click)="edit(j)">{{ lang.t('btn.edit') }}</button>
+              <button class="ghost danger" (click)="remove(j)">{{ lang.t('btn.delete') }}</button>
             </div>
             <div class="meta">
               <span title="backup schedule (cron)">🕒 {{ j.backupSchedule }}</span>
@@ -42,9 +43,9 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
             </div>
             @if (j.agentId) {
               <div class="acts">
-                <button class="ghost sm" (click)="run(j)">Run now</button>
-                <button class="ghost sm" (click)="test(j)">Test</button>
-                <button class="ghost sm" (click)="drill(j)">Drill</button>
+                <button class="ghost sm" (click)="run(j)">{{ lang.t('btn.runNow') }}</button>
+                <button class="ghost sm" (click)="test(j)">{{ lang.t('btn.test') }}</button>
+                <button class="ghost sm" (click)="drill(j)">{{ lang.t('btn.drill') }}</button>
               </div>
             } @else {
               <div class="acts"><span class="muted">No agent assigned — edit the job to pick one.</span></div>
@@ -146,6 +147,7 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
 })
 export class Jobs {
   private api = inject(Api);
+  lang = inject(Lang);
 
   items = signal<JobDto[]>([]);
   sources = signal<SourceDto[]>([]);
@@ -175,7 +177,14 @@ export class Jobs {
     return '🖥️ ' + (this.agents().find(a => a.id === j.agentId)?.name ?? 'agent');
   }
 
-  openNew() { this.editingId.set(null); this.form = this.empty(); this.enabled = true; this.error.set(null); this.formOpen.set(true); }
+  openNew() {
+    this.editingId.set(null);
+    this.form = this.empty();
+    if (this.agents().length === 1) this.form.agentId = this.agents()[0].id;
+    this.enabled = true;
+    this.error.set(null);
+    this.formOpen.set(true);
+  }
 
   edit(j: JobDto) {
     this.editingId.set(j.id);

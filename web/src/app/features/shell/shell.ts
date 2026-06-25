@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { Theme } from '../../core/theme';
+import { Lang, Locale } from '../../core/lang';
 
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="layout">
@@ -13,16 +15,23 @@ import { Theme } from '../../core/theme';
         <div class="brand">🗄️ BackupHub</div>
         <nav>
           @for (item of nav; track item.path) {
-            <a [routerLink]="item.path" routerLinkActive="active">{{ item.icon }} {{ item.label }}</a>
+            <a [routerLink]="item.path" routerLinkActive="active">{{ item.icon }} {{ lang.t(item.key) }}</a>
           }
         </nav>
         <div class="spacer"></div>
-        <button class="theme ghost" (click)="theme.cycle()" [title]="'Theme: ' + theme.mode()">
-          {{ themeIcon() }} {{ theme.mode() }}
-        </button>
+        <div class="prefs">
+          <select [ngModel]="lang.locale()" (ngModelChange)="lang.set($event)" [title]="lang.t('app.language')">
+            <option value="en">🇬🇧 English</option>
+            <option value="ru">🇷🇺 Русский</option>
+            <option value="uz">🇺🇿 O‘zbekcha</option>
+          </select>
+          <button class="ghost theme" (click)="theme.toggle()" [title]="lang.t('app.theme')">
+            {{ theme.mode() === 'dark' ? '🌙' : '☀️' }}
+          </button>
+        </div>
         <div class="user">
           <div>{{ auth.user()?.username }}</div>
-          <button class="ghost" (click)="auth.logout()">Sign out</button>
+          <button class="ghost" (click)="auth.logout()">{{ lang.t('app.signOut') }}</button>
         </div>
       </aside>
       <main><router-outlet /></main>
@@ -37,7 +46,9 @@ import { Theme } from '../../core/theme';
     nav a { padding: 10px 12px; border-radius: 8px; color: var(--muted); }
     nav a:hover { background: var(--surface-2); color: var(--text); }
     nav a.active { background: var(--primary); color: #fff; }
-    .theme { text-transform: capitalize; margin-bottom: 10px; justify-content: flex-start; text-align: left; }
+    .prefs { display: flex; gap: 8px; margin-bottom: 10px; }
+    .prefs select { flex: 1; }
+    .theme { padding: 8px 12px; }
     .user { display: flex; flex-direction: column; gap: 8px; font-size: 13px; padding: 10px; border-top: 1px solid var(--border); }
     main { padding: 28px 32px; overflow-y: auto; height: 100vh; }
   `,
@@ -45,16 +56,15 @@ import { Theme } from '../../core/theme';
 export class Shell {
   auth = inject(AuthService);
   theme = inject(Theme);
+  lang = inject(Lang);
 
   nav = [
-    { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-    { path: '/sources', label: 'Sources', icon: '🗃️' },
-    { path: '/destinations', label: 'Destinations', icon: '☁️' },
-    { path: '/jobs', label: 'Jobs', icon: '⚙️' },
-    { path: '/history', label: 'History', icon: '🕓' },
-    { path: '/agents', label: 'Agents', icon: '🖥️' },
-    { path: '/settings', label: 'Settings', icon: '🔔' },
+    { path: '/dashboard', key: 'nav.dashboard', icon: '📊' },
+    { path: '/sources', key: 'nav.sources', icon: '🗃️' },
+    { path: '/destinations', key: 'nav.destinations', icon: '☁️' },
+    { path: '/jobs', key: 'nav.jobs', icon: '⚙️' },
+    { path: '/history', key: 'nav.history', icon: '🕓' },
+    { path: '/agents', key: 'nav.agents', icon: '🖥️' },
+    { path: '/settings', key: 'nav.settings', icon: '🔔' },
   ];
-
-  themeIcon = () => ({ system: '🖥️', light: '☀️', dark: '🌙' })[this.theme.mode()];
 }

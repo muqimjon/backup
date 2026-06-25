@@ -1,18 +1,14 @@
 import { Injectable, signal } from '@angular/core';
 
-export type ThemeMode = 'system' | 'light' | 'dark';
+export type ThemeMode = 'dark' | 'light';
 
 @Injectable({ providedIn: 'root' })
 export class Theme {
   private readonly key = 'backuphub.theme';
-  private readonly media = window.matchMedia('(prefers-color-scheme: dark)');
 
-  readonly mode = signal<ThemeMode>((localStorage.getItem(this.key) as ThemeMode) || 'system');
+  readonly mode = signal<ThemeMode>((localStorage.getItem(this.key) as ThemeMode) || 'dark');
 
-  constructor() {
-    this.media.addEventListener('change', () => this.apply());
-    this.apply();
-  }
+  constructor() { this.apply(); }
 
   set(mode: ThemeMode) {
     this.mode.set(mode);
@@ -20,16 +16,10 @@ export class Theme {
     this.apply();
   }
 
-  cycle() {
-    const order: ThemeMode[] = ['system', 'light', 'dark'];
-    this.set(order[(order.indexOf(this.mode()) + 1) % order.length]);
-  }
+  toggle() { this.set(this.mode() === 'dark' ? 'light' : 'dark'); }
 
   private apply() {
-    const resolved = this.mode() === 'system'
-      ? (this.media.matches ? 'dark' : 'light')
-      : this.mode();
-    if (resolved === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    if (this.mode() === 'light') document.documentElement.setAttribute('data-theme', 'light');
     else document.documentElement.removeAttribute('data-theme');
   }
 }

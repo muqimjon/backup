@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Api } from '../../core/api';
 import { BackupEngine, CreateSource, SourceDto } from '../../core/models';
 import { engineLabel } from '../../core/format';
+import { Lang } from '../../core/lang';
 import { Modal } from '../../shared/modal';
 
 @Component({
@@ -11,9 +12,9 @@ import { Modal } from '../../shared/modal';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="row">
-      <div><h1>Sources</h1><p class="muted">Databases and buckets to back up</p></div>
+      <div><h1>{{ lang.t('sources.title') }}</h1><p class="muted">{{ lang.t('sources.subtitle') }}</p></div>
       <div class="spacer"></div>
-      <button (click)="open()">+ Add source</button>
+      <button (click)="open()">{{ lang.t('sources.add') }}</button>
     </div>
 
     <div class="card">
@@ -27,7 +28,7 @@ import { Modal } from '../../shared/modal';
               <tr>
                 <td>{{ s.name }}</td><td>{{ engineLabel(s.engine) }}</td>
                 <td class="muted">{{ s.host }}:{{ s.port }}</td><td>{{ s.target }}</td>
-                <td class="right"><button class="ghost danger" (click)="remove(s)">Delete</button></td>
+                <td class="right"><button class="ghost danger" (click)="remove(s)">{{ lang.t('btn.delete') }}</button></td>
               </tr>
             }
           </tbody>
@@ -74,6 +75,7 @@ import { Modal } from '../../shared/modal';
 })
 export class Sources {
   private api = inject(Api);
+  lang = inject(Lang);
 
   items = signal<SourceDto[]>([]);
   adding = signal(false);
