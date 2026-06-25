@@ -21,15 +21,15 @@ import { AgentDto } from '../../core/models';
       <h3>{{ lang.t('a.what') }}</h3>
       <p>{{ lang.t('a.explain') }}</p>
       <p class="muted"><b>{{ lang.t('a.addTitle') }}</b></p>
-      <pre>docker run -d --restart=always \
-  -e HUB_URL=https://your-hub:8080 \
-  -e HUB_TOKEN=&lt;your hub token&gt; \
-  -e AGENT_NAME=server-2 \
-  --add-host host.docker.internal:host-gateway \
-  -v bh_agent:/backup \
-  muqimjon/backuphub-agent</pre>
-      <p class="muted">🔑 {{ lang.t('a.tokenNote') }}</p>
-      <p class="muted">{{ lang.t('a.removeNote') }}</p>
+      <pre>{{ cmd() }}</pre>
+      <div class="tok">
+        <div class="muted">🔑 {{ lang.t('a.tokenNote') }}</div>
+        <div class="trow">
+          <code>{{ revealed() ? token() : masked() }}</code>
+          <button class="ghost sm" (click)="revealed.set(!revealed())">{{ revealed() ? '🙈' : '👁' }}</button>
+          <button class="ghost sm" (click)="copyToken()">📋 {{ copied() ? '✓' : 'Copy' }}</button>
+        </div>
+      </div>
     </div>
 
     <div class="card">
@@ -65,6 +65,10 @@ import { AgentDto } from '../../core/models';
     .info p { margin: 0 0 8px; line-height: 1.55; }
     .info pre { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
                 padding: 12px 14px; font-size: 12px; overflow-x: auto; margin: 4px 0 12px; }
+    .tok { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+    .trow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .trow code { font-size: 13px; flex: 1; word-break: break-all; }
+    .tok .sm { padding: 4px 9px; font-size: 13px; }
     .right { text-align: right; }
     .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-left: 4px; }
     .dot.live { background: var(--ok); }
@@ -82,10 +86,37 @@ export class Agents {
   lang = inject(Lang);
   items = signal<AgentDto[]>([]);
   notice = signal<string | null>(null);
+  token = signal('');
+  revealed = signal(false);
+  copied = signal(false);
+  private hubUrl = location.origin;
 
-  constructor() { this.load(); }
+  constructor() { this.load(); this.api.hubToken().subscribe(r => this.token.set(r.token)); }
 
   load() { this.api.agents().subscribe(a => this.items.set(a)); }
+
+  cmd() {
+    return `docker run -d --restart=always \\
+  -e HUB_URL=${this.hubUrl} \\
+  -e HUB_TOKEN=<paste-token-below> \\
+  -e AGENT_NAME=server-2 \\
+  --add-host host.docker.internal:host-gateway \\
+  -v bh_agent:/backup \\
+  muqimjon/backuphub-agent`;
+  }
+
+  masked() {
+    const t = this.token();
+    if (t.length <= 14) return t ? '••••••' : '';
+    return t.slice(0, 6) + ' •••••••••• ' + t.slice(-4);
+  }
+
+  copyToken() {
+    navigator.clipboard?.writeText(this.token()).then(() => {
+      this.copied.set(true);
+      setTimeout(() => this.copied.set(false), 2000);
+    });
+  }
 
   toggle(a: AgentDto) {
     this.api.setAgentEnabled(a.id, !a.enabled).subscribe({

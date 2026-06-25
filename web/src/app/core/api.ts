@@ -45,12 +45,17 @@ export class Api {
   restore(jobId: string, fileName: string, snapshotFirst: boolean) {
     return this.http.post<string>(`/api/jobs/${jobId}/restore`, { fileName, snapshotFirst });
   }
+  deliver(jobId: string, fileName: string) { return this.http.post<string>(`/api/jobs/${jobId}/deliver`, { fileName }); }
+  download(jobId: string, file: string) {
+    return this.http.get(`/api/jobs/${jobId}/download?file=${encodeURIComponent(file)}`, { responseType: 'blob', observe: 'response' });
+  }
 
   settings() { return this.http.get<SettingsDto>('/api/settings'); }
   updateGoogle(clientId: string, clientSecret: string) {
     return this.http.put<boolean>('/api/settings/google', { clientId, clientSecret });
   }
   saveLocale(locale: string) { return this.http.put<boolean>('/api/settings/locale', { locale }); }
+  hubToken() { return this.http.get<{ token: string }>('/api/settings/hub-token'); }
 
   notifications() { return this.http.get<NotificationSettingsDto>('/api/notifications'); }
   saveNotifyMode(notifyOn: string) { return this.http.put<boolean>('/api/notifications/mode', { notifyOn }); }
@@ -64,5 +69,6 @@ export class Api {
   linkTelegram(code: string) { return this.http.post<boolean>('/api/notifications/telegram/link', { code }); }
   unlinkTelegram(id: string) { return this.http.delete<boolean>(`/api/notifications/telegram/${id}`); }
   setChatLang(id: string, lang: string | null) { return this.http.put<boolean>(`/api/notifications/telegram/${id}/lang`, lang); }
+  setChatName(id: string, name: string | null) { return this.http.put<boolean>(`/api/notifications/telegram/${id}/name`, name); }
   testNotification() { return this.http.post<string>('/api/notifications/test', {}); }
 }

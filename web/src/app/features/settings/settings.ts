@@ -38,6 +38,14 @@ type Tab = 'email' | 'telegram' | 'webhook';
       @if (n(); as s) {
         @switch (tab()) {
           @case ('email') {
+            <label>Provider</label>
+            <select [(ngModel)]="provider" (ngModelChange)="applyProvider()">
+              <option value="">Custom</option>
+              <option value="gmail">Gmail</option>
+              <option value="outlook">Outlook / Microsoft 365</option>
+              <option value="yahoo">Yahoo</option>
+              <option value="zoho">Zoho</option>
+            </select>
             <div class="g2">
               <div><label>SMTP host</label><input [(ngModel)]="smtpHost" placeholder="smtp.gmail.com" /></div>
               <div><label>{{ lang.t('f.port') }}</label><input type="number" [(ngModel)]="smtpPort" placeholder="587" /></div>
@@ -91,11 +99,12 @@ type Tab = 'email' | 'telegram' | 'webhook';
               @if (s.chats.length) {
                 @for (c of s.chats; track c.id) {
                   <div class="lrow">
-                    <span class="who">{{ c.label || '—' }} <span class="muted">{{ c.chatId }}</span></span>
+                    <input class="cname" [value]="c.label || ''" (blur)="setChatName(c.id, $any($event.target).value)" [placeholder]="lang.t('f.name')" />
+                    <span class="muted id">{{ c.chatId }}</span>
                     <div class="spacer"></div>
                     <select [ngModel]="c.lang || ''" (ngModelChange)="setChatLang(c.id, $event)" class="langsel">
                       <option value="">{{ langLabel('') }}</option>
-                      <option value="en">EN</option><option value="ru">RU</option><option value="uz">UZ</option>
+                      <option value="en">English</option><option value="ru">Русский</option><option value="uz">O‘zbekcha</option>
                     </select>
                     <button class="ghost sm danger" (click)="unlink(c.id)">{{ lang.t('btn.delete') }}</button>
                   </div>
@@ -134,7 +143,9 @@ type Tab = 'email' | 'telegram' | 'webhook';
     .addgrid { display: grid; grid-template-columns: 1.6fr 1.2fr 1fr auto; gap: 8px; margin: 10px 0; }
     .lrow { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-top: 1px solid var(--border); }
     .who { font-size: 14px; } .who .muted { font-size: 12px; }
-    .langsel { width: auto; min-width: 92px; }
+    .cname { max-width: 200px; }
+    .lrow .id { font-size: 12px; }
+    .langsel { width: auto; min-width: 110px; }
     button.sm { padding: 5px 11px; font-size: 13px; }
     button.danger { color: var(--fail); border-color: var(--fail); }
     .hint { font-size: 12px; color: var(--muted); margin-top: 10px; }
@@ -156,6 +167,19 @@ export class Settings {
   smtpHost = ''; smtpPort: number | null = 587; smtpUser = ''; smtpPass = ''; smtpFrom = '';
   webhookUrl = ''; telegramToken = ''; linkCode = '';
   newEmail = ''; newName = ''; newLang = '';
+  provider = '';
+
+  private presets: Record<string, { host: string; port: number }> = {
+    gmail: { host: 'smtp.gmail.com', port: 587 },
+    outlook: { host: 'smtp.office365.com', port: 587 },
+    yahoo: { host: 'smtp.mail.yahoo.com', port: 587 },
+    zoho: { host: 'smtp.zoho.com', port: 587 },
+  };
+
+  applyProvider() {
+    const p = this.presets[this.provider];
+    if (p) { this.smtpHost = p.host; this.smtpPort = p.port; }
+  }
 
   constructor() { this.load(); }
 
@@ -205,6 +229,7 @@ export class Settings {
     });
   }
   setChatLang(id: string, lang: string) { this.api.setChatLang(id, lang || null).subscribe(() => this.load()); }
+  setChatName(id: string, name: string) { this.api.setChatName(id, name.trim() || null).subscribe(() => this.load()); }
   link() {
     if (!this.linkCode) return;
     this.api.linkTelegram(this.linkCode).subscribe({

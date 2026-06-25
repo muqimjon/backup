@@ -129,6 +129,8 @@ poll_commands() {
                snap=$(echo "$payload" | jq -r '.snapshot // false')
                [ -n "$jid" ] && [ -n "$file" ] && /usr/local/bin/restore-job.sh "$jid" "$file" "$snap" || true ;;
             4) [ -n "$jid" ] && /usr/local/bin/test-job.sh "$jid" || true ;;
+            5) file=$(echo "$payload" | jq -r '.file // empty')
+               [ -n "$jid" ] && [ -n "$file" ] && /usr/local/bin/deliver.sh "$jid" "$file" || true ;;
         esac
         api -X POST "${HUB_URL}/api/agents/commands/${cid}/ack" >/dev/null 2>&1 || true
     done

@@ -192,6 +192,21 @@ internal sealed class SetTelegramChatLangHandler(IAppDbContext db)
     }
 }
 
+public sealed record SetTelegramChatNameCommand(Guid Id, string? Name) : IRequest<bool>;
+
+internal sealed class SetTelegramChatNameHandler(IAppDbContext db)
+    : IRequestHandler<SetTelegramChatNameCommand, bool>
+{
+    public async ValueTask<bool> Handle(SetTelegramChatNameCommand command, CancellationToken ct)
+    {
+        var chat = await db.TelegramChats.FirstOrDefaultAsync(c => c.Id == command.Id, ct);
+        if (chat is null) return false;
+        chat.Label = string.IsNullOrWhiteSpace(command.Name) ? null : command.Name.Trim();
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+}
+
 public sealed record UnlinkTelegramCommand(Guid Id) : IRequest<bool>;
 
 internal sealed class UnlinkTelegramHandler(IAppDbContext db)

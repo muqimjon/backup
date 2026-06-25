@@ -61,6 +61,32 @@ internal sealed class RecordInventoryHandler(IAppDbContext db)
     }
 }
 
+public sealed record DeliverArtifactCommand(Guid JobId, string FileName) : IRequest<Guid>;
+
+internal sealed class DeliverArtifactHandler(IAppDbContext db)
+    : IRequestHandler<DeliverArtifactCommand, Guid>
+{
+    public async ValueTask<Guid> Handle(DeliverArtifactCommand command, CancellationToken ct)
+    {
+        var job = await db.Jobs.FirstOrDefaultAsync(j => j.Id == command.JobId, ct)
+            ?? throw new NotFoundException("Job not found");
+        if (job.AgentId is null)
+            throw new ConflictException("This job has no agent assigned");
+
+        var payload = JsonSerializer.Serialize(new { file = command.FileName });
+        var cmd = new AgentCommand
+        {
+            AgentId = job.AgentId.Value,
+            Kind = CommandKind.DeliverArtifact,
+            JobId = command.JobId,
+            Payload = payload,
+        };
+        db.Commands.Add(cmd);
+        await db.SaveChangesAsync(ct);
+        return cmd.Id;
+    }
+}
+
 public sealed record RestoreVersionCommand(Guid JobId, string FileName, bool SnapshotFirst) : IRequest<Guid>;
 
 internal sealed class RestoreVersionHandler(IAppDbContext db)

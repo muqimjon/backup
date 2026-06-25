@@ -42,6 +42,7 @@ public enum CommandKind
     RepullConfig = 2,
     RestoreVersion = 3,
     TestConnection = 4,
+    DeliverArtifact = 5,
 }
 
 public enum ArtifactLocation

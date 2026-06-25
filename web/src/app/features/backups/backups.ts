@@ -37,7 +37,12 @@ import { formatBytes } from '../../core/format';
                 <td>{{ v.driver }}</td>
                 <td>{{ formatBytes(v.bytes) }}</td>
                 <td><span class="loc {{ locClass(v.location) }}">{{ locLabel(v.location) }}</span></td>
-                <td><button (click)="ask(v)">Restore</button></td>
+                <td class="acts">
+                  <button class="ghost" (click)="download(v)" [disabled]="downloading() === v.fileName">
+                    {{ downloading() === v.fileName ? '…' : 'Download' }}
+                  </button>
+                  <button (click)="ask(v)">Restore</button>
+                </td>
               </tr>
             }
           </tbody>
@@ -76,6 +81,8 @@ import { formatBytes } from '../../core/format';
     .loc.remote { background: rgba(224,169,59,.15); color: var(--warn); }
     .loc.both { background: rgba(47,191,113,.15); color: var(--ok); }
     .notice { margin: 14px 0; padding: 10px 14px; border-radius: 8px; background: rgba(47,191,113,.12); color: var(--ok); }
+    .acts { display: flex; gap: 8px; justify-content: flex-end; }
+    .acts button { padding: 5px 12px; font-size: 13px; }
     .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 50; }
     .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; width: 460px; max-width: 92vw; }
     .modal h3 { margin-bottom: 12px; }
@@ -96,6 +103,7 @@ export class Backups {
   snapshot = true;
   confirmText = '';
   notice = signal<string | null>(null);
+  downloading = signal<string | null>(null);
 
   formatBytes = formatBytes;
 
@@ -114,6 +122,31 @@ export class Backups {
     this.api.restore(this.jobId, v.fileName, this.snapshot).subscribe({
       next: () => { this.target.set(null); this.flash('Restore queued — watch History. ' + (this.snapshot ? 'Current state is being snapshotted first.' : '')); },
       error: e => this.flash(e?.error?.error ?? 'Restore failed to queue.'),
+    });
+  }
+
+  download(v: BackupVersionDto) {
+    this.downloading.set(v.fileName);
+    this.flash('Preparing download — the agent is sending the file…');
+    this.api.deliver(this.jobId, v.fileName).subscribe({
+      next: () => this.poll(v.fileName, 0),
+      error: e => { this.downloading.set(null); this.flash(e?.error?.error ?? 'Could not request the file.'); },
+    });
+  }
+
+  private poll(file: string, tries: number) {
+    if (tries > 40) { this.downloading.set(null); this.flash('Timed out preparing the file.'); return; }
+    this.api.download(this.jobId, file).subscribe({
+      next: res => {
+        const blob = res.body!;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = file; a.click();
+        URL.revokeObjectURL(url);
+        this.downloading.set(null);
+        this.flash('Download started.');
+      },
+      error: () => setTimeout(() => this.poll(file, tries + 1), 2000),
     });
   }
 

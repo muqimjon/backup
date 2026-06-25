@@ -42,6 +42,10 @@ public sealed class NotificationsController(ISender mediator) : ApiController(me
     public async Task<ActionResult<bool>> ChatLang(Guid id, [FromBody] string? lang, CancellationToken ct)
         => Ok(await Mediator.Send(new SetTelegramChatLangCommand(id, lang), ct));
 
+    [HttpPut("telegram/{id:guid}/name")]
+    public async Task<ActionResult<bool>> ChatName(Guid id, [FromBody] string? name, CancellationToken ct)
+        => Ok(await Mediator.Send(new SetTelegramChatNameCommand(id, name), ct));
+
     [HttpPost("telegram/link")]
     public async Task<ActionResult<bool>> Link(LinkRequest body, CancellationToken ct)
         => Ok(await Mediator.Send(new LinkTelegramCommand(body.Code), ct));
