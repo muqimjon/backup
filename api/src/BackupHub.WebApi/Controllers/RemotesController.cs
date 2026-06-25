@@ -70,6 +70,11 @@ public sealed class RemotesController(ISender mediator, IGoogleOAuthService goog
     public async Task<IActionResult> RcloneConf(Guid id, CancellationToken ct)
         => Content(await Mediator.Send(new GetRcloneConfigQuery(id), ct), "text/plain");
 
+    [Authorize]
+    [HttpDelete("{id:guid}")]
+    public async Task<ActionResult<bool>> Delete(Guid id, CancellationToken ct)
+        => Ok(await Mediator.Send(new Application.Features.Management.DeleteRemoteCommand(id), ct));
+
     private string CallbackUri() => $"{Request.Scheme}://{Request.Host}/api/remotes/google/callback";
 
     private static string Base64Url(string value)

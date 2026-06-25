@@ -40,4 +40,9 @@ public sealed class AgentsController(ISender mediator) : ApiController(mediator)
     [HttpPost("{id:guid}/enqueue")]
     public async Task<ActionResult<Guid>> Enqueue(Guid id, EnqueueRequest body, CancellationToken ct)
         => Ok(await Mediator.Send(new EnqueueAgentCommandCommand(id, body.Kind, body.JobId), ct));
+
+    [Authorize]
+    [HttpDelete("{id:guid}")]
+    public async Task<ActionResult<bool>> Delete(Guid id, CancellationToken ct)
+        => Ok(await Mediator.Send(new Application.Features.Management.DeleteAgentCommand(id), ct));
 }

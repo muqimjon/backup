@@ -107,3 +107,86 @@ internal sealed class CreateJobHandler(IAppDbContext db, ISecretProtector protec
         return job.Id;
     }
 }
+
+public sealed record UpdateJobCommand(
+    Guid Id,
+    string Name,
+    bool Enabled,
+    Guid SourceId,
+    Guid RemoteId,
+    Guid? AgentId,
+    string BackupSchedule,
+    string? UploadSchedule,
+    string? CleanupSchedule,
+    string? DrillSchedule,
+    int MinLocalBackups,
+    int MaxLocalBackups,
+    int MaxRemoteBackups,
+    int CompressionLevel,
+    string? BackupPassword) : IRequest<bool>;
+
+public sealed class UpdateJobValidator : AbstractValidator<UpdateJobCommand>
+{
+    public UpdateJobValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.SourceId).NotEmpty();
+        RuleFor(x => x.RemoteId).NotEmpty();
+        RuleFor(x => x.BackupSchedule).NotEmpty();
+        RuleFor(x => x.MinLocalBackups).GreaterThanOrEqualTo(1);
+        RuleFor(x => x.MaxLocalBackups).GreaterThanOrEqualTo(x => x.MinLocalBackups);
+        RuleFor(x => x.MaxRemoteBackups).GreaterThanOrEqualTo(1);
+        RuleFor(x => x.CompressionLevel).InclusiveBetween(1, 9);
+    }
+}
+
+internal sealed class UpdateJobHandler(IAppDbContext db, ISecretProtector protector)
+    : IRequestHandler<UpdateJobCommand, bool>
+{
+    public async ValueTask<bool> Handle(UpdateJobCommand command, CancellationToken ct)
+    {
+        var job = await db.Jobs.FirstOrDefaultAsync(j => j.Id == command.Id, ct)
+            ?? throw new NotFoundException("Job not found");
+
+        job.Name = command.Name;
+        job.Enabled = command.Enabled;
+        job.SourceId = command.SourceId;
+        job.RemoteId = command.RemoteId;
+        job.AgentId = command.AgentId;
+        job.BackupSchedule = command.BackupSchedule;
+        job.UploadSchedule = command.UploadSchedule;
+        job.CleanupSchedule = command.CleanupSchedule;
+        job.DrillSchedule = command.DrillSchedule;
+        job.MinLocalBackups = command.MinLocalBackups;
+        job.MaxLocalBackups = command.MaxLocalBackups;
+        job.MaxRemoteBackups = command.MaxRemoteBackups;
+        job.CompressionLevel = command.CompressionLevel;
+        if (!string.IsNullOrEmpty(command.BackupPassword))
+            job.BackupPasswordEncrypted = protector.Protect(command.BackupPassword);
+
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+}
+
+public sealed record DeleteJobCommand(Guid Id) : IRequest<bool>;
+
+internal sealed class DeleteJobHandler(IAppDbContext db)
+    : IRequestHandler<DeleteJobCommand, bool>
+{
+    public async ValueTask<bool> Handle(DeleteJobCommand command, CancellationToken ct)
+    {
+        var job = await db.Jobs.FirstOrDefaultAsync(j => j.Id == command.Id, ct);
+        if (job is null)
+            return false;
+
+        var artifacts = await db.Artifacts.Where(a => a.JobId == command.Id).ToListAsync(ct);
+        db.Artifacts.RemoveRange(artifacts);
+        var commands = await db.Commands.Where(c => c.JobId == command.Id).ToListAsync(ct);
+        db.Commands.RemoveRange(commands);
+
+        db.Jobs.Remove(job);
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+}

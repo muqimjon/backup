@@ -11,6 +11,24 @@
   --fail: #e2554e;
   --warn: #e0a93b;
   --radius: 12px;
+  --shadow: 0 18px 50px rgba(0, 0, 0, .5);
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface-2: #eef1f7;
+  --border: #dce1ec;
+  --text: #1a2233;
+  --muted: #667085;
+  --primary: #3d68ec;
+  --primary-hover: #2d56d8;
+  --ok: #1f9d57;
+  --fail: #d6453d;
+  --warn: #b8801a;
+  --shadow: 0 18px 50px rgba(20, 30, 60, .18);
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }

@@ -15,4 +15,12 @@ public sealed class JobsController(ISender mediator) : ApiController(mediator)
     [HttpPost]
     public async Task<ActionResult<Guid>> Create(CreateJobCommand command, CancellationToken ct)
         => Ok(await Mediator.Send(command, ct));
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<bool>> Update(Guid id, UpdateJobCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command with { Id = id }, ct));
+
+    [HttpDelete("{id:guid}")]
+    public async Task<ActionResult<bool>> Delete(Guid id, CancellationToken ct)
+        => Ok(await Mediator.Send(new DeleteJobCommand(id), ct));
 }

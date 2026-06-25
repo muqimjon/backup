@@ -48,6 +48,8 @@ run_backup() {
             || { rm -f "$outfile"; error_exit "Backup integrity check failed (driver: ${driver})"; }
     fi
 
+    TOTAL_BYTES=$(( ${TOTAL_BYTES:-0} + bytes ))
+
     local size; size=$(du -sh "$outfile" 2>/dev/null | cut -f1)
     log "Done    : ${name}.zip  (${size})  ✓ verified"
 }
@@ -70,7 +72,7 @@ log "Backup finished"
 log "=========================================="
 
 notify success "Backup created for ${#DRIVERS[@]} source(s): ${DRIVERS[*]}"
-hub_report 0 1 0 "Backup created (${DRIVERS[*]})" || true
+hub_report 0 1 "${TOTAL_BYTES:-0}" "Backup created (${DRIVERS[*]})" || true
 
 # Upload ergashuvchi — o'z scheduli yo'q bo'lsa darhol ishga tushiradi
 # (upload.sh o'zi cleanup ni ham chaqiradi agar cleanup scheduli yo'q bo'lsa)

@@ -62,7 +62,7 @@ import { formatBytes } from '../../core/format';
           <div class="row actions">
             <button class="ghost" (click)="target.set(null)">Cancel</button>
             <div class="spacer"></div>
-            <button class="danger" [disabled]="confirmText() !== job()?.name" (click)="doRestore()">Restore now</button>
+            <button class="danger" [disabled]="confirmText !== job()?.name" (click)="doRestore()">Restore now</button>
           </div>
         </div>
       </div>
@@ -93,8 +93,8 @@ export class Backups {
   job = signal<JobDto | null>(null);
   items = signal<BackupVersionDto[]>([]);
   target = signal<BackupVersionDto | null>(null);
-  snapshot = signal(true);
-  confirmText = signal('');
+  snapshot = true;
+  confirmText = '';
   notice = signal<string | null>(null);
 
   formatBytes = formatBytes;
@@ -106,13 +106,13 @@ export class Backups {
 
   load() { this.api.versions(this.jobId).subscribe(v => this.items.set(v)); }
 
-  ask(v: BackupVersionDto) { this.confirmText.set(''); this.snapshot.set(true); this.target.set(v); }
+  ask(v: BackupVersionDto) { this.confirmText = ''; this.snapshot = true; this.target.set(v); }
 
   doRestore() {
     const v = this.target();
     if (!v) return;
-    this.api.restore(this.jobId, v.fileName, this.snapshot()).subscribe({
-      next: () => { this.target.set(null); this.flash('Restore queued — watch History. ' + (this.snapshot() ? 'Current state is being snapshotted first.' : '')); },
+    this.api.restore(this.jobId, v.fileName, this.snapshot).subscribe({
+      next: () => { this.target.set(null); this.flash('Restore queued — watch History. ' + (this.snapshot ? 'Current state is being snapshotted first.' : '')); },
       error: e => this.flash(e?.error?.error ?? 'Restore failed to queue.'),
     });
   }

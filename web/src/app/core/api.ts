@@ -13,6 +13,7 @@ export class Api {
 
   sources() { return this.http.get<SourceDto[]>('/api/sources'); }
   createSource(body: CreateSource) { return this.http.post<string>('/api/sources', body); }
+  deleteSource(id: string) { return this.http.delete<boolean>(`/api/sources/${id}`); }
 
   remotes() { return this.http.get<RemoteDto[]>('/api/remotes'); }
   createS3(body: CreateS3Remote) { return this.http.post<string>('/api/remotes/s3', body); }
@@ -20,6 +21,7 @@ export class Api {
   createSftp(body: CreateSftpRemote) { return this.http.post<string>('/api/remotes/sftp', body); }
   createWebDav(body: CreateWebDavRemote) { return this.http.post<string>('/api/remotes/webdav', body); }
   createCustom(body: CreateCustomRemote) { return this.http.post<string>('/api/remotes/custom', body); }
+  deleteRemote(id: string) { return this.http.delete<boolean>(`/api/remotes/${id}`); }
   googleConnect(name: string, path: string) {
     const q = `name=${encodeURIComponent(name)}&path=${encodeURIComponent(path)}`;
     return this.http.get<{ url: string }>(`/api/remotes/google/connect?${q}`);
@@ -27,8 +29,11 @@ export class Api {
 
   jobs() { return this.http.get<JobDto[]>('/api/jobs'); }
   createJob(body: CreateJob) { return this.http.post<string>('/api/jobs', body); }
+  updateJob(id: string, body: CreateJob & { enabled: boolean }) { return this.http.put<boolean>(`/api/jobs/${id}`, body); }
+  deleteJob(id: string) { return this.http.delete<boolean>(`/api/jobs/${id}`); }
 
   agents() { return this.http.get<AgentDto[]>('/api/agents'); }
+  deleteAgent(id: string) { return this.http.delete<boolean>(`/api/agents/${id}`); }
   enqueue(agentId: string, kind: CommandKind, jobId: string | null = null) {
     return this.http.post<string>(`/api/agents/${agentId}/enqueue`, { kind, jobId });
   }
