@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import {
   AgentDto, CommandKind, CreateJob, CreateS3Remote, CreateSource,
-  JobDto, RemoteDto, RunDto, SourceDto,
+  JobDto, RemoteDto, RunDto, SourceDto, StatsDto,
 } from './models';
 
 @Injectable({ providedIn: 'root' })
@@ -28,4 +28,6 @@ export class Api {
   }
 
   history(take = 100) { return this.http.get<RunDto[]>(`/api/history?take=${take}`); }
+
+  stats() { return this.http.get<StatsDto>('/api/stats'); }
 }

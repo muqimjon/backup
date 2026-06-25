@@ -51,3 +51,16 @@ export interface RunDto {
   startedAt: string; finishedAt: string | null;
   bytes: number; message: string | null;
 }
+
+export interface RunBroadcast extends RunDto {
+  project: string; driver: string;
+}
+
+export interface StatsDto {
+  agents: number; jobs: number;
+  ok24h: number; fail24h: number;
+  lastBackupBytes: number;
+  lastSuccessAt: string | null;
+  lastDrillStatus: RunStatus | null;
+  lastDrillAt: string | null;
+}

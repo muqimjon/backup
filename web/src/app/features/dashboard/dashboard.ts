@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, effect, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { Api } from '../../core/api';
-import { AgentDto, JobDto, RunDto, RunStatus } from '../../core/models';
+import { Live } from '../../core/live';
+import { RunDto, RunStatus, StatsDto } from '../../core/models';
 import { formatBytes, runTypeLabel, statusClass, statusLabel } from '../../core/format';
 
 @Component({
@@ -9,14 +10,43 @@ import { formatBytes, runTypeLabel, statusClass, statusLabel } from '../../core/
   imports: [DatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h1>Dashboard</h1>
-    <p class="muted">Overview of your backups</p>
+    <div class="head">
+      <div>
+        <h1>Dashboard</h1>
+        <p class="muted">Overview of your backups</p>
+      </div>
+      <span class="live" [class.on]="live.connected()">
+        {{ live.connected() ? 'live' : 'offline' }}
+      </span>
+    </div>
 
     <div class="stats">
-      <div class="card stat"><div class="n">{{ agents().length }}</div><div class="muted">Agents</div></div>
-      <div class="card stat"><div class="n">{{ jobs().length }}</div><div class="muted">Jobs</div></div>
-      <div class="card stat"><div class="n ok">{{ okCount() }}</div><div class="muted">Recent OK</div></div>
-      <div class="card stat"><div class="n fail">{{ failCount() }}</div><div class="muted">Recent failed</div></div>
+      <div class="card stat"><div class="n">{{ stats()?.agents ?? 0 }}</div><div class="muted">Agents</div></div>
+      <div class="card stat"><div class="n">{{ stats()?.jobs ?? 0 }}</div><div class="muted">Jobs</div></div>
+      <div class="card stat"><div class="n ok">{{ stats()?.ok24h ?? 0 }}</div><div class="muted">OK · 24h</div></div>
+      <div class="card stat"><div class="n fail">{{ stats()?.fail24h ?? 0 }}</div><div class="muted">Failed · 24h</div></div>
+    </div>
+
+    <div class="stats">
+      <div class="card stat">
+        <div class="label">Last backup size</div>
+        <div class="big">{{ formatBytes(stats()?.lastBackupBytes ?? 0) }}</div>
+      </div>
+      <div class="card stat">
+        <div class="label">Last success</div>
+        <div class="big">{{ stats()?.lastSuccessAt ? (stats()!.lastSuccessAt | date: 'short') : '—' }}</div>
+      </div>
+      <div class="card stat drill">
+        <div class="label">Restore verified</div>
+        @if (stats()?.lastDrillAt) {
+          <div class="big" [class.ok]="drillOk()" [class.fail]="!drillOk()">
+            {{ drillOk() ? '✓ passed' : '✗ failed' }}
+          </div>
+          <div class="muted">{{ stats()!.lastDrillAt | date: 'short' }}</div>
+        } @else {
+          <div class="big muted">not run yet</div>
+        }
+      </div>
     </div>
 
     <div class="card">
@@ -42,31 +72,53 @@ import { formatBytes, runTypeLabel, statusClass, statusLabel } from '../../core/
     </div>
   `,
   styles: `
+    .head { display: flex; align-items: flex-start; justify-content: space-between; }
+    .live { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; padding: 4px 10px;
+            border-radius: 20px; background: var(--surface-2, #eee); color: var(--muted); }
+    .live.on { background: rgba(34,197,94,.15); color: var(--ok); }
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 20px 0; }
+    .stats:has(.drill) { grid-template-columns: repeat(3, 1fr); }
     .stat .n { font-size: 30px; font-weight: 700; }
     .stat .n.ok { color: var(--ok); }
     .stat .n.fail { color: var(--fail); }
+    .stat .label { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    .stat .big { font-size: 20px; font-weight: 600; }
+    .stat .big.ok { color: var(--ok); }
+    .stat .big.fail { color: var(--fail); }
     h3 { margin-bottom: 14px; }
   `,
 })
-export class Dashboard {
+export class Dashboard implements OnInit, OnDestroy {
   private api = inject(Api);
+  protected live = inject(Live);
 
-  agents = signal<AgentDto[]>([]);
-  jobs = signal<JobDto[]>([]);
+  stats = signal<StatsDto | null>(null);
   runs = signal<RunDto[]>([]);
-
-  okCount = computed(() => this.runs().filter(r => r.status === RunStatus.Ok).length);
-  failCount = computed(() => this.runs().filter(r => r.status === RunStatus.Fail).length);
 
   statusClass = statusClass;
   statusLabel = statusLabel;
   runTypeLabel = runTypeLabel;
   formatBytes = formatBytes;
 
+  drillOk = () => this.stats()?.lastDrillStatus === RunStatus.Ok;
+
   constructor() {
-    this.api.agents().subscribe(a => this.agents.set(a));
-    this.api.jobs().subscribe(j => this.jobs.set(j));
+    effect(() => {
+      if (this.live.last()) this.refresh();
+    });
+  }
+
+  ngOnInit() {
+    this.live.start();
+    this.refresh();
+  }
+
+  ngOnDestroy() {
+    this.live.stop();
+  }
+
+  private refresh() {
+    this.api.stats().subscribe(s => this.stats.set(s));
     this.api.history(20).subscribe(r => this.runs.set(r));
   }
 }

@@ -16,7 +16,10 @@ public sealed record RecordRunEventCommand(
     long Bytes,
     string? Message) : IRequest<Guid>;
 
-internal sealed class RecordRunEventHandler(IAppDbContext db)
+internal sealed class RecordRunEventHandler(
+    IAppDbContext db,
+    IMetricsRecorder metrics,
+    IRunNotifier notifier)
     : IRequestHandler<RecordRunEventCommand, Guid>
 {
     public async ValueTask<Guid> Handle(RecordRunEventCommand command, CancellationToken ct)
@@ -38,7 +41,31 @@ internal sealed class RecordRunEventHandler(IAppDbContext db)
         if (agent is not null)
             agent.LastSeenAt = DateTimeOffset.UtcNow;
 
+        var job = await db.Jobs
+            .Include(j => j.Source)
+            .FirstOrDefaultAsync(j => j.Id == command.JobId, ct);
+
         await db.SaveChangesAsync(ct);
+
+        var project = agent?.Project ?? "backup";
+        var driver = job is null ? "unknown" : DriverName(job.Source.Engine);
+        var duration = command.FinishedAt is { } end ? (end - command.StartedAt).TotalSeconds : 0;
+
+        metrics.RecordRun(project, driver, command.Type, command.Status, command.Bytes, duration);
+
+        await notifier.Publish(new RunBroadcast(
+            run.Id, run.JobId, job?.Name ?? "—", project, driver,
+            run.Type, run.Status, run.StartedAt, run.FinishedAt, run.Bytes, run.Message), ct);
+
         return run.Id;
     }
+
+    private static string DriverName(BackupEngine engine) => engine switch
+    {
+        BackupEngine.Postgres => "postgres",
+        BackupEngine.MySql => "mysql",
+        BackupEngine.Mssql => "mssql",
+        BackupEngine.Minio => "minio",
+        _ => "unknown",
+    };
 }

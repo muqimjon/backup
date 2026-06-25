@@ -1,0 +1,55 @@
+{
+  "title": "BackupHub",
+  "uid": "backuphub",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-7d", "to": "now" },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Hours since last success",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "h", "thresholds": { "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 26 }
+      ] } } },
+      "targets": [ { "expr": "(time() - max by (project, driver) (backuphub_last_success_timestamp)) / 3600", "legendFormat": "{{project}}/{{driver}}" } ]
+    },
+    {
+      "type": "stat",
+      "title": "Last backup size",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "targets": [ { "expr": "backuphub_backup_bytes", "legendFormat": "{{project}}/{{driver}}" } ]
+    },
+    {
+      "type": "stat",
+      "title": "Restore drill",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "mappings": [
+        { "type": "value", "options": { "0": { "text": "FAIL", "color": "red" }, "1": { "text": "OK", "color": "green" } } }
+      ] } },
+      "targets": [ { "expr": "backuphub_drill_last_status", "legendFormat": "{{project}}/{{driver}}" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Failures (total)",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "targets": [ { "expr": "backuphub_run_failures_total", "legendFormat": "{{project}}/{{driver}}" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Run duration (s)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [ { "expr": "backuphub_run_duration_seconds", "legendFormat": "{{project}}/{{driver}}" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Backup size trend",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "targets": [ { "expr": "backuphub_backup_bytes", "legendFormat": "{{project}}/{{driver}}" } ]
+    }
+  ]
+}

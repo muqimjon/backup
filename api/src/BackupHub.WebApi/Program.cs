@@ -1,9 +1,11 @@
 using System.Text;
 using BackupHub.Application;
+using BackupHub.Application.Abstractions;
 using BackupHub.Infrastructure;
 using BackupHub.Infrastructure.Persistence;
 using BackupHub.WebApi.Common;
 using BackupHub.WebApi.Hubs;
+using BackupHub.WebApi.Metrics;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Prometheus;
@@ -19,6 +21,8 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<IMetricsRecorder, PrometheusMetricsRecorder>();
+builder.Services.AddScoped<IRunNotifier, SignalRRunNotifier>();
 builder.Services.AddCors(options => options.AddPolicy(DevCors, policy =>
     policy.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod()));
 
