@@ -14,6 +14,8 @@ import { AgentDto, CommandKind } from '../../core/models';
       <button class="ghost" (click)="load()">Refresh</button>
     </div>
 
+    @if (notice()) { <div class="notice">{{ notice() }}</div> }
+
     <div class="card">
       @if (items().length === 0) {
         <p class="muted">No agents registered yet. Start a <code>backuphub/agent</code> container pointed at this hub.</p>
@@ -37,17 +39,30 @@ import { AgentDto, CommandKind } from '../../core/models';
       }
     </div>
   `,
-  styles: `h1 { margin: 0; } button { padding: 6px 12px; }`,
+  styles: `
+    h1 { margin: 0; }
+    .notice { margin: 14px 0; padding: 10px 14px; border-radius: 8px;
+              background: rgba(47,191,113,.12); color: var(--ok); }
+  `,
 })
 export class Agents {
   private api = inject(Api);
   items = signal<AgentDto[]>([]);
+  notice = signal<string | null>(null);
 
   constructor() { this.load(); }
 
   load() { this.api.agents().subscribe(a => this.items.set(a)); }
 
   runNow(agent: AgentDto) {
-    this.api.enqueue(agent.id, CommandKind.RunBackup).subscribe();
+    this.api.enqueue(agent.id, CommandKind.RunBackup).subscribe({
+      next: () => this.flash(`Backup queued on "${agent.name}" — watch History / Dashboard.`),
+      error: () => this.flash('Failed to queue the backup.'),
+    });
+  }
+
+  private flash(msg: string) {
+    this.notice.set(msg);
+    setTimeout(() => this.notice.set(null), 6000);
   }
 }

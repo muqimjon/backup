@@ -18,9 +18,14 @@ CRON_PID=""
 
 api() { curl -fsS --max-time 15 -H "X-Hub-Token: ${HUB_TOKEN}" "$@"; }
 
+# kv KEY VALUE  →  shell-safe assignment (quotes values with spaces/specials).
+# Sourced back by run-job.sh (bash), so %q round-trips correctly.
+kv() { printf '%s=%q\n' "$1" "$2"; }
+
 write_job_env() {
-    local job="$1" jid engine host port user secret target rid rpath bp
+    local job="$1" jid engine host port user secret target rid rpath bp name minl maxl maxr comp
     jid=$(echo "$job" | jq -r '.jobId')
+    name=$(echo "$job" | jq -r '.name')
     engine=$(echo "$job" | jq -r '.engine')
     host=$(echo "$job" | jq -r '.host')
     port=$(echo "$job" | jq -r '.port')
@@ -29,6 +34,10 @@ write_job_env() {
     target=$(echo "$job" | jq -r '.target')
     rid=$(echo "$job" | jq -r '.remoteId')
     rpath=$(echo "$job" | jq -r '.remotePath')
+    minl=$(echo "$job" | jq -r '.minLocalBackups')
+    maxl=$(echo "$job" | jq -r '.maxLocalBackups')
+    maxr=$(echo "$job" | jq -r '.maxRemoteBackups')
+    comp=$(echo "$job" | jq -r '.compressionLevel')
     bp=$(echo "$job" | jq -r '.backupPassword // empty')
 
     local conf="${JOBS_DIR}/${jid}.rclone.conf"
@@ -36,20 +45,20 @@ write_job_env() {
         || log "rclone config fetch failed for job ${jid}"
 
     {
-        echo "PROJECT_NAME=$(echo "$job" | jq -r '.name')"
-        echo "RCLONE_CONFIG=${conf}"
-        echo "RCLONE_REMOTE=remote"
-        echo "RCLONE_PATH=${rpath}"
-        echo "MIN_LOCAL_BACKUPS=$(echo "$job" | jq -r '.minLocalBackups')"
-        echo "MAX_LOCAL_BACKUPS=$(echo "$job" | jq -r '.maxLocalBackups')"
-        echo "MAX_REMOTE_BACKUPS=$(echo "$job" | jq -r '.maxRemoteBackups')"
-        echo "COMPRESSION_LEVEL=$(echo "$job" | jq -r '.compressionLevel')"
-        [ -n "$bp" ] && echo "BACKUP_PASSWORD=${bp}"
+        kv PROJECT_NAME "$name"
+        kv RCLONE_CONFIG "$conf"
+        kv RCLONE_REMOTE remote
+        kv RCLONE_PATH "$rpath"
+        kv MIN_LOCAL_BACKUPS "$minl"
+        kv MAX_LOCAL_BACKUPS "$maxl"
+        kv MAX_REMOTE_BACKUPS "$maxr"
+        kv COMPRESSION_LEVEL "$comp"
+        [ -n "$bp" ] && kv BACKUP_PASSWORD "$bp"
         case "$engine" in
-            0) echo "BACKUP_DRIVER=postgres"; echo "PG_HOST=${host}"; echo "PG_PORT=${port}"; echo "PG_USER=${user}"; echo "PG_PASSWORD=${secret}"; echo "PG_DATABASE=${target}" ;;
-            1) echo "BACKUP_DRIVER=mysql"; echo "MYSQL_HOST=${host}"; echo "MYSQL_PORT=${port}"; echo "MYSQL_USER=${user}"; echo "MYSQL_PASSWORD=${secret}"; echo "MYSQL_DATABASE=${target}" ;;
-            3) echo "BACKUP_DRIVER=minio"; echo "MINIO_ENDPOINT=${host}"; echo "MINIO_ACCESS_KEY=${user}"; echo "MINIO_SECRET_KEY=${secret}"; echo "MINIO_BUCKET=${target}" ;;
-            *) echo "BACKUP_DRIVER=postgres" ;;
+            0) kv BACKUP_DRIVER postgres; kv PG_HOST "$host"; kv PG_PORT "$port"; kv PG_USER "$user"; kv PG_PASSWORD "$secret"; kv PG_DATABASE "$target" ;;
+            1) kv BACKUP_DRIVER mysql; kv MYSQL_HOST "$host"; kv MYSQL_PORT "$port"; kv MYSQL_USER "$user"; kv MYSQL_PASSWORD "$secret"; kv MYSQL_DATABASE "$target" ;;
+            3) kv BACKUP_DRIVER minio; kv MINIO_ENDPOINT "$host"; kv MINIO_ACCESS_KEY "$user"; kv MINIO_SECRET_KEY "$secret"; kv MINIO_BUCKET "$target" ;;
+            *) kv BACKUP_DRIVER postgres ;;
         esac
     } > "${JOBS_DIR}/${jid}.env"
 }

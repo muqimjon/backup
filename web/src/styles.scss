@@ -72,6 +72,12 @@ tr:hover td { background: var(--surface-2); }
 .badge.run { background: rgba(224,169,59,.15); color: var(--warn); }
 
 .muted { color: var(--muted); }
-.row { display: flex; gap: 12px; }
+.row { display: flex; align-items: center; gap: 12px; }
+.row + .card, .row + .form { margin-top: 16px; }
 .grid { display: grid; gap: 16px; }
 .spacer { flex: 1; }
+
+button { white-space: nowrap; line-height: 1.2; }
+button.ghost { padding: 8px 14px; }
+.row h1 { margin: 0; }
+.row p.muted { margin: 2px 0 0; }

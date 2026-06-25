@@ -3,6 +3,7 @@ services:
     build:
       context: ..
       dockerfile: deploy/hub.Dockerfile
+      network: host
     image: muqimjon/backuphub:latest
     container_name: backuphub
     restart: always
@@ -28,6 +29,7 @@ services:
       dockerfile: workers/images/agent/Dockerfile
     image: muqimjon/backuphub-agent:latest
     container_name: backuphub_agent
+    hostname: ${AGENT_NAME:-local-agent}
     restart: always
     depends_on:
       - hub
@@ -37,6 +39,8 @@ services:
       AGENT_NAME: ${AGENT_NAME:-local-agent}
       PROJECT_NAME: ${PROJECT_NAME:-backuphub}
       TZ: ${TZ:-UTC}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./agent-data:/backup
     networks:

@@ -16,6 +16,12 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
 
     @if (adding()) {
       <div class="card form">
+        @if (sources().length === 0 || remotes().length === 0) {
+          <div class="hint">
+            @if (sources().length === 0) { <span>⚠ Create a <b>Source</b> first.</span> }
+            @if (remotes().length === 0) { <span>⚠ Add a <b>Destination</b> first.</span> }
+          </div>
+        }
         <div class="grid g2">
           <div><label>Name</label><input [(ngModel)]="form.name" /></div>
           <div><label>Agent</label>
@@ -47,9 +53,14 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
           <div><label>Encryption password (optional)</label><input type="password" [(ngModel)]="form.backupPassword" /></div>
         </div>
         @if (error()) { <div class="err">{{ error() }}</div> }
-        <div class="row"><div class="spacer"></div><button (click)="save()" [disabled]="saving()">Save</button></div>
+        <div class="row">
+          <div class="spacer"></div>
+          <button (click)="save()" [disabled]="saving() || !form.name || !form.sourceId || !form.remoteId">Save</button>
+        </div>
       </div>
     }
+
+    @if (notice()) { <div class="notice">{{ notice() }}</div> }
 
     <div class="card">
       @if (items().length === 0) {
@@ -81,6 +92,10 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
     .form { margin: 16px 0; }
     .g2 { grid-template-columns: 1fr 1fr; }
     .err { color: var(--fail); margin-top: 10px; }
+    .hint { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px;
+            padding: 10px 14px; border-radius: 8px; background: rgba(224,169,59,.12); color: var(--warn); }
+    .notice { margin: 14px 0; padding: 10px 14px; border-radius: 8px;
+              background: rgba(47,191,113,.12); color: var(--ok); }
     h1 { margin: 0; }
   `,
 })
@@ -94,6 +109,7 @@ export class Jobs {
   adding = signal(false);
   saving = signal(false);
   error = signal<string | null>(null);
+  notice = signal<string | null>(null);
 
   form: CreateJob = this.empty();
 
@@ -108,16 +124,38 @@ export class Jobs {
 
   runDrill(job: JobDto) {
     if (!job.agentId) return;
-    this.api.enqueue(job.agentId, CommandKind.RunDrill, job.id).subscribe();
+    this.api.enqueue(job.agentId, CommandKind.RunDrill, job.id).subscribe({
+      next: () => this.flash(`Restore-drill queued for "${job.name}" — watch History / Dashboard.`),
+      error: () => this.flash('Failed to queue the drill.'),
+    });
+  }
+
+  private flash(msg: string) {
+    this.notice.set(msg);
+    setTimeout(() => this.notice.set(null), 6000);
   }
 
   save() {
     this.saving.set(true);
     this.error.set(null);
-    this.api.createJob(this.form).subscribe({
+    const body: CreateJob = {
+      ...this.form,
+      uploadSchedule: this.form.uploadSchedule?.trim() || null,
+      cleanupSchedule: this.form.cleanupSchedule?.trim() || null,
+      drillSchedule: this.form.drillSchedule?.trim() || null,
+      backupPassword: this.form.backupPassword?.trim() || null,
+    };
+    this.api.createJob(body).subscribe({
       next: () => { this.saving.set(false); this.adding.set(false); this.form = this.empty(); this.load(); },
-      error: e => { this.saving.set(false); this.error.set(e?.error?.error ?? 'Failed to save'); },
+      error: e => { this.saving.set(false); this.error.set(this.errorMessage(e)); },
     });
+  }
+
+  private errorMessage(e: any): string {
+    if (e?.error?.error) return e.error.error;
+    if (e?.error?.errors) return Object.values(e.error.errors).flat().join('; ');
+    if (e?.status === 0) return 'Cannot reach the server';
+    return 'Failed to save';
   }
 
   private empty(): CreateJob {
