@@ -24,6 +24,9 @@ are encrypted at rest. Configure it in **Settings → Notifications → Email**.
 | Outlook / Microsoft 365 | `smtp.office365.com` | 587 |
 | Yahoo | `smtp.mail.yahoo.com` | 587 |
 | Zoho | `smtp.zoho.com` | 587 |
+| Yandex | `smtp.yandex.com` | 587 (use an [app password](https://id.yandex.com/security/app-passwords)) |
+| Mail.ru | `smtp.mail.ru` | 587 (app password in account security) |
+| iCloud | `smtp.mail.me.com` | 587 (needs an Apple [app-specific password](https://appleid.apple.com), From = your iCloud address) |
 | SendGrid | `smtp.sendgrid.net` | 587 (user = `apikey`) |
 | Mailgun | `smtp.mailgun.org` | 587 |
 

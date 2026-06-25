@@ -45,6 +45,9 @@ type Tab = 'email' | 'telegram' | 'webhook';
               <option value="outlook">Outlook / Microsoft 365</option>
               <option value="yahoo">Yahoo</option>
               <option value="zoho">Zoho</option>
+              <option value="yandex">Yandex</option>
+              <option value="mailru">Mail.ru</option>
+              <option value="icloud">iCloud</option>
             </select>
             <div class="g2">
               <div><label>SMTP host</label><input [(ngModel)]="smtpHost" placeholder="smtp.gmail.com" /></div>
@@ -174,6 +177,9 @@ export class Settings {
     outlook: { host: 'smtp.office365.com', port: 587 },
     yahoo: { host: 'smtp.mail.yahoo.com', port: 587 },
     zoho: { host: 'smtp.zoho.com', port: 587 },
+    yandex: { host: 'smtp.yandex.com', port: 587 },
+    mailru: { host: 'smtp.mail.ru', port: 587 },
+    icloud: { host: 'smtp.mail.me.com', port: 587 },
   };
 
   applyProvider() {
