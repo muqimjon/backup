@@ -4,7 +4,7 @@ services:
       context: ..
       dockerfile: deploy/hub.Dockerfile
       network: host
-    image: muqimjon/zaxira-console:latest
+    image: muqimjon/zaxira-hub:latest
     container_name: zaxira
     restart: always
     ports:
