@@ -108,9 +108,9 @@ internal sealed class GetAgentJobsHandler(IAppDbContext db, ISecretProtector pro
     }
 }
 
-public sealed record AgentCommandDto(Guid Id, CommandKind Kind, Guid? JobId);
+public sealed record AgentCommandDto(Guid Id, CommandKind Kind, Guid? JobId, string? Payload);
 
-public sealed record EnqueueAgentCommandCommand(Guid AgentId, CommandKind Kind, Guid? JobId) : IRequest<Guid>;
+public sealed record EnqueueAgentCommandCommand(Guid AgentId, CommandKind Kind, Guid? JobId, string? Payload = null) : IRequest<Guid>;
 
 internal sealed class EnqueueAgentCommandHandler(IAppDbContext db)
     : IRequestHandler<EnqueueAgentCommandCommand, Guid>
@@ -122,6 +122,7 @@ internal sealed class EnqueueAgentCommandHandler(IAppDbContext db)
             AgentId = command.AgentId,
             Kind = command.Kind,
             JobId = command.JobId,
+            Payload = command.Payload,
         };
         db.Commands.Add(entity);
         await db.SaveChangesAsync(ct);
@@ -138,7 +139,7 @@ internal sealed class GetPendingCommandsHandler(IAppDbContext db)
         => await db.Commands
             .Where(c => c.AgentId == query.AgentId && c.AckedAt == null)
             .OrderBy(c => c.CreatedAt)
-            .Select(c => new AgentCommandDto(c.Id, c.Kind, c.JobId))
+            .Select(c => new AgentCommandDto(c.Id, c.Kind, c.JobId, c.Payload))
             .ToListAsync(ct);
 }
 

@@ -103,3 +103,6 @@ cleanup_local() {
 }
 
 cleanup_local
+
+# Refresh the hub's version list after retention changes the local set
+/usr/local/bin/inventory.sh || true

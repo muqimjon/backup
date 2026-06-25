@@ -14,6 +14,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<BackupJob> Jobs => Set<BackupJob>();
     public DbSet<BackupRun> Runs => Set<BackupRun>();
     public DbSet<AgentCommand> Commands => Set<AgentCommand>();
+    public DbSet<Setting> Settings => Set<Setting>();
+    public DbSet<BackupArtifact> Artifacts => Set<BackupArtifact>();
+    public DbSet<TelegramChat> TelegramChats => Set<TelegramChat>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -26,6 +29,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         builder.Entity<Agent>().HasIndex(a => new { a.Hostname, a.Project });
         builder.Entity<BackupRun>().HasIndex(r => r.StartedAt);
         builder.Entity<AgentCommand>().HasIndex(c => new { c.AgentId, c.AckedAt });
+        builder.Entity<Setting>().HasIndex(s => s.Key).IsUnique();
+        builder.Entity<BackupArtifact>().HasIndex(a => new { a.JobId, a.FileName }).IsUnique();
 
         builder.Entity<BackupJob>()
             .HasOne(j => j.Source).WithMany().HasForeignKey(j => j.SourceId)

@@ -19,7 +19,8 @@ public sealed record RecordRunEventCommand(
 internal sealed class RecordRunEventHandler(
     IAppDbContext db,
     IMetricsRecorder metrics,
-    IRunNotifier notifier)
+    IRunNotifier notifier,
+    INotificationSender notifications)
     : IRequestHandler<RecordRunEventCommand, Guid>
 {
     public async ValueTask<Guid> Handle(RecordRunEventCommand command, CancellationToken ct)
@@ -56,6 +57,14 @@ internal sealed class RecordRunEventHandler(
         await notifier.Publish(new RunBroadcast(
             run.Id, run.JobId, job?.Name ?? "—", project, driver,
             run.Type, run.Status, run.StartedAt, run.FinishedAt, run.Bytes, run.Message), ct);
+
+        if (command.Status is RunStatus.Ok or RunStatus.Fail)
+        {
+            var level = command.Status == RunStatus.Fail ? "error" : "success";
+            var title = $"{project} · {command.Type} {(command.Status == RunStatus.Fail ? "FAILED" : "OK")}";
+            var body = $"{job?.Name ?? driver}: {command.Message ?? command.Type.ToString()}";
+            await notifications.DispatchAsync(level, title, body, ct);
+        }
 
         return run.Id;
     }

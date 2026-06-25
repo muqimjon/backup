@@ -1,25 +1,28 @@
 using System.Text.Json;
 using BackupHub.Application.Abstractions;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 
 namespace BackupHub.Infrastructure.Oauth;
 
-public sealed class GoogleOptions
+public sealed class GoogleOAuthService(HttpClient http, ISettingsService settings, IConfiguration config)
+    : IGoogleOAuthService
 {
-    public string ClientId { get; set; } = default!;
-    public string ClientSecret { get; set; } = default!;
-}
-
-public sealed class GoogleOAuthService(HttpClient http, IOptions<GoogleOptions> options) : IGoogleOAuthService
-{
+    public const string ClientIdKey = "Google.ClientId";
+    public const string ClientSecretKey = "Google.ClientSecret";
     private const string Scope = "https://www.googleapis.com/auth/drive";
-    private readonly GoogleOptions _options = options.Value;
 
-    public string BuildAuthUrl(string state, string redirectUri)
+    public async Task<bool> IsConfiguredAsync(CancellationToken ct = default)
     {
+        var (id, secret) = await ResolveAsync(ct);
+        return !string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(secret);
+    }
+
+    public async Task<string> BuildAuthUrlAsync(string state, string redirectUri, CancellationToken ct = default)
+    {
+        var (clientId, _) = await ResolveAsync(ct);
         var query = new Dictionary<string, string?>
         {
-            ["client_id"] = _options.ClientId,
+            ["client_id"] = clientId,
             ["redirect_uri"] = redirectUri,
             ["response_type"] = "code",
             ["scope"] = Scope,
@@ -33,11 +36,12 @@ public sealed class GoogleOAuthService(HttpClient http, IOptions<GoogleOptions> 
 
     public async Task<string> ExchangeCodeAsync(string code, string redirectUri, CancellationToken ct = default)
     {
+        var (clientId, clientSecret) = await ResolveAsync(ct);
         var form = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["code"] = code,
-            ["client_id"] = _options.ClientId,
-            ["client_secret"] = _options.ClientSecret,
+            ["client_id"] = clientId ?? string.Empty,
+            ["client_secret"] = clientSecret ?? string.Empty,
             ["redirect_uri"] = redirectUri,
             ["grant_type"] = "authorization_code",
         });
@@ -59,5 +63,13 @@ public sealed class GoogleOAuthService(HttpClient http, IOptions<GoogleOptions> 
             refresh_token = refreshToken,
             expiry,
         });
+    }
+
+    private async Task<(string? ClientId, string? ClientSecret)> ResolveAsync(CancellationToken ct)
+    {
+        var stored = await settings.GetManyAsync([ClientIdKey, ClientSecretKey], ct);
+        var id = stored.GetValueOrDefault(ClientIdKey) ?? config["Google:ClientId"];
+        var secret = stored.GetValueOrDefault(ClientSecretKey) ?? config["Google:ClientSecret"];
+        return (id, secret);
     }
 }

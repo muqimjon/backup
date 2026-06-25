@@ -77,3 +77,6 @@ hub_report 0 1 0 "Backup created (${DRIVERS[*]})" || true
 if [ -z "${UPLOAD_SCHEDULE:-}" ]; then
     /usr/local/bin/upload.sh
 fi
+
+# Report the archive list (local + remote) to the hub for the versions UI
+/usr/local/bin/inventory.sh || true

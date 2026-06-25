@@ -120,10 +120,15 @@ poll_commands() {
         cid=$(echo "$c" | jq -r '.id')
         kind=$(echo "$c" | jq -r '.kind')
         jid=$(echo "$c" | jq -r '.jobId // empty')
+        payload=$(echo "$c" | jq -r '.payload // "{}"')
         case "$kind" in
             0) if [ -n "$jid" ]; then /usr/local/bin/run-job.sh "$jid" backup || true; else run_all_jobs; fi ;;
             1) [ -n "$jid" ] && /usr/local/bin/run-job.sh "$jid" drill || true ;;
             2) sync_jobs ;;
+            3) file=$(echo "$payload" | jq -r '.file // empty')
+               snap=$(echo "$payload" | jq -r '.snapshot // false')
+               [ -n "$jid" ] && [ -n "$file" ] && /usr/local/bin/restore-job.sh "$jid" "$file" "$snap" || true ;;
+            4) [ -n "$jid" ] && /usr/local/bin/test-job.sh "$jid" || true ;;
         esac
         api -X POST "${HUB_URL}/api/agents/commands/${cid}/ack" >/dev/null 2>&1 || true
     done

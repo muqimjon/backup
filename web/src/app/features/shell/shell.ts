@@ -46,5 +46,6 @@ export class Shell {
     { path: '/jobs', label: 'Jobs', icon: '⚙️' },
     { path: '/history', label: 'History', icon: '🕓' },
     { path: '/agents', label: 'Agents', icon: '🖥️' },
+    { path: '/settings', label: 'Settings', icon: '⚙️' },
   ];
 }

@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { Api } from '../../core/api';
 import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '../../core/models';
 
 @Component({
   selector: 'app-jobs',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="row">
@@ -74,9 +75,11 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
                 <td>{{ j.name }}</td><td>{{ j.sourceName }}</td><td>{{ j.remoteName }}</td>
                 <td class="muted">{{ j.backupSchedule }}</td>
                 <td class="muted">{{ j.minLocalBackups }}–{{ j.maxLocalBackups }} local · {{ j.maxRemoteBackups }} remote</td>
-                <td>
+                <td class="acts">
+                  <a class="ghost btn" [routerLink]="['/backups', j.id]">Versions</a>
                   @if (j.agentId) {
-                    <button class="ghost" (click)="runDrill(j)">Run drill</button>
+                    <button class="ghost" (click)="test(j)">Test</button>
+                    <button class="ghost" (click)="runDrill(j)">Drill</button>
                   } @else {
                     <span class="muted">no agent</span>
                   }
@@ -96,6 +99,10 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
             padding: 10px 14px; border-radius: 8px; background: rgba(224,169,59,.12); color: var(--warn); }
     .notice { margin: 14px 0; padding: 10px 14px; border-radius: 8px;
               background: rgba(47,191,113,.12); color: var(--ok); }
+    .acts { display: flex; gap: 6px; align-items: center; }
+    .acts button, .acts .btn { padding: 5px 10px; font-size: 13px; }
+    a.btn { display: inline-block; border: 1px solid var(--border); border-radius: 8px; color: var(--text); }
+    a.btn:hover { background: var(--surface-2); }
     h1 { margin: 0; }
   `,
 })
@@ -127,6 +134,14 @@ export class Jobs {
     this.api.enqueue(job.agentId, CommandKind.RunDrill, job.id).subscribe({
       next: () => this.flash(`Restore-drill queued for "${job.name}" — watch History / Dashboard.`),
       error: () => this.flash('Failed to queue the drill.'),
+    });
+  }
+
+  test(job: JobDto) {
+    if (!job.agentId) return;
+    this.api.enqueue(job.agentId, CommandKind.TestConnection, job.id).subscribe({
+      next: () => this.flash(`Connection test queued for "${job.name}" — result in History.`),
+      error: () => this.flash('Failed to queue the test.'),
     });
   }
 

@@ -11,7 +11,7 @@ namespace BackupHub.WebApi.Controllers;
 
 public sealed record ConnectState(string Name, string Path);
 
-public sealed class RemotesController(ISender mediator, IGoogleOAuthService google, IConfiguration config) : ApiController(mediator)
+public sealed class RemotesController(ISender mediator, IGoogleOAuthService google) : ApiController(mediator)
 {
     [Authorize]
     [HttpGet]
@@ -24,14 +24,34 @@ public sealed class RemotesController(ISender mediator, IGoogleOAuthService goog
         => Ok(await Mediator.Send(command, ct));
 
     [Authorize]
+    [HttpPost("b2")]
+    public async Task<ActionResult<Guid>> CreateB2(CreateB2RemoteCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command, ct));
+
+    [Authorize]
+    [HttpPost("sftp")]
+    public async Task<ActionResult<Guid>> CreateSftp(CreateSftpRemoteCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command, ct));
+
+    [Authorize]
+    [HttpPost("webdav")]
+    public async Task<ActionResult<Guid>> CreateWebDav(CreateWebDavRemoteCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command, ct));
+
+    [Authorize]
+    [HttpPost("custom")]
+    public async Task<ActionResult<Guid>> CreateCustom(CreateCustomRemoteCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command, ct));
+
+    [Authorize]
     [HttpGet("google/connect")]
-    public IActionResult ConnectGoogle([FromQuery] string name, [FromQuery] string path)
+    public async Task<IActionResult> ConnectGoogle([FromQuery] string name, [FromQuery] string path, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(config["Google:ClientId"]))
-            return BadRequest(new { error = "Google OAuth is not configured. Set Google:ClientId and Google:ClientSecret in appsettings (see docs)." });
+        if (!await google.IsConfiguredAsync(ct))
+            return BadRequest(new { error = "Google OAuth is not configured. Add your Client ID and Secret on the Settings page." });
 
         var state = Base64Url(JsonSerializer.Serialize(new ConnectState(name, path)));
-        return Ok(new { url = google.BuildAuthUrl(state, CallbackUri()) });
+        return Ok(new { url = await google.BuildAuthUrlAsync(state, CallbackUri(), ct) });
     }
 
     [AllowAnonymous]

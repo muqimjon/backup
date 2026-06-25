@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.DataProtection;
 using BackupHub.Infrastructure.Persistence;
 using BackupHub.Infrastructure.Rclone;
 using BackupHub.Infrastructure.Security;
+using BackupHub.Infrastructure.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,13 +25,15 @@ public static class DependencyInjection
             .SetApplicationName("BackupHub");
 
         services.Configure<JwtOptions>(config.GetSection("Jwt"));
-        services.Configure<GoogleOptions>(config.GetSection("Google"));
 
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<ISecretProtector, SecretProtector>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
         services.AddSingleton<IRcloneConfigFactory, RcloneConfigFactory>();
+        services.AddScoped<ISettingsService, SettingsService>();
         services.AddHttpClient<IGoogleOAuthService, GoogleOAuthService>();
+        services.AddHttpClient<INotificationSender, Notifications.NotificationSender>();
+        services.AddHostedService<Notifications.TelegramPoller>();
 
         return services;
     }

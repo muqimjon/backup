@@ -1,8 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import {
-  AgentDto, CommandKind, CreateJob, CreateS3Remote, CreateSource,
-  JobDto, RemoteDto, RunDto, SourceDto, StatsDto,
+  AgentDto, BackupVersionDto, CommandKind, CreateB2Remote, CreateCustomRemote, CreateJob,
+  CreateS3Remote, CreateSftpRemote, CreateSource, CreateWebDavRemote, JobDto,
+  NotificationSettingsDto, RemoteDto, RunDto, SettingsDto, SourceDto, StatsDto,
+  UpdateNotificationSettings,
 } from './models';
 
 @Injectable({ providedIn: 'root' })
@@ -14,6 +16,10 @@ export class Api {
 
   remotes() { return this.http.get<RemoteDto[]>('/api/remotes'); }
   createS3(body: CreateS3Remote) { return this.http.post<string>('/api/remotes/s3', body); }
+  createB2(body: CreateB2Remote) { return this.http.post<string>('/api/remotes/b2', body); }
+  createSftp(body: CreateSftpRemote) { return this.http.post<string>('/api/remotes/sftp', body); }
+  createWebDav(body: CreateWebDavRemote) { return this.http.post<string>('/api/remotes/webdav', body); }
+  createCustom(body: CreateCustomRemote) { return this.http.post<string>('/api/remotes/custom', body); }
   googleConnect(name: string, path: string) {
     const q = `name=${encodeURIComponent(name)}&path=${encodeURIComponent(path)}`;
     return this.http.get<{ url: string }>(`/api/remotes/google/connect?${q}`);
@@ -28,6 +34,21 @@ export class Api {
   }
 
   history(take = 100) { return this.http.get<RunDto[]>(`/api/history?take=${take}`); }
-
   stats() { return this.http.get<StatsDto>('/api/stats'); }
+
+  versions(jobId: string) { return this.http.get<BackupVersionDto[]>(`/api/jobs/${jobId}/versions`); }
+  restore(jobId: string, fileName: string, snapshotFirst: boolean) {
+    return this.http.post<string>(`/api/jobs/${jobId}/restore`, { fileName, snapshotFirst });
+  }
+
+  settings() { return this.http.get<SettingsDto>('/api/settings'); }
+  updateGoogle(clientId: string, clientSecret: string) {
+    return this.http.put<boolean>('/api/settings/google', { clientId, clientSecret });
+  }
+
+  notifications() { return this.http.get<NotificationSettingsDto>('/api/notifications'); }
+  updateNotifications(body: UpdateNotificationSettings) { return this.http.put<boolean>('/api/notifications', body); }
+  linkTelegram(code: string) { return this.http.post<boolean>('/api/notifications/telegram/link', { code }); }
+  unlinkTelegram(id: string) { return this.http.delete<boolean>(`/api/notifications/telegram/${id}`); }
+  testNotification() { return this.http.post<string>('/api/notifications/test', {}); }
 }

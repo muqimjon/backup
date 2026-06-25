@@ -2,6 +2,7 @@ namespace BackupHub.Application.Abstractions;
 
 public interface IGoogleOAuthService
 {
-    string BuildAuthUrl(string state, string redirectUri);
+    Task<bool> IsConfiguredAsync(CancellationToken ct = default);
+    Task<string> BuildAuthUrlAsync(string state, string redirectUri, CancellationToken ct = default);
     Task<string> ExchangeCodeAsync(string code, string redirectUri, CancellationToken ct = default);
 }

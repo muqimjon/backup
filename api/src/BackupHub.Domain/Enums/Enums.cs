@@ -12,6 +12,10 @@ public enum RemoteType
 {
     GoogleDrive = 0,
     S3 = 1,
+    Custom = 2,
+    B2 = 3,
+    Sftp = 4,
+    WebDav = 5,
 }
 
 public enum RunType
@@ -20,6 +24,8 @@ public enum RunType
     Upload = 1,
     Cleanup = 2,
     Drill = 3,
+    Restore = 4,
+    Test = 5,
 }
 
 public enum RunStatus
@@ -34,4 +40,13 @@ public enum CommandKind
     RunBackup = 0,
     RunDrill = 1,
     RepullConfig = 2,
+    RestoreVersion = 3,
+    TestConnection = 4,
+}
+
+public enum ArtifactLocation
+{
+    Local = 0,
+    Remote = 1,
+    Both = 2,
 }

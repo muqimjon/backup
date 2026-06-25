@@ -12,6 +12,9 @@ public interface IAppDbContext
     DbSet<BackupJob> Jobs { get; }
     DbSet<BackupRun> Runs { get; }
     DbSet<AgentCommand> Commands { get; }
+    DbSet<Setting> Settings { get; }
+    DbSet<BackupArtifact> Artifacts { get; }
+    DbSet<TelegramChat> TelegramChats { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
