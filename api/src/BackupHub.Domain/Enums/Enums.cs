@@ -17,6 +17,8 @@ public enum RemoteType
     Sftp = 4,
     WebDav = 5,
     OneDrive = 6,
+    Dropbox = 7,
+    Yandex = 8,
 }
 
 public enum RunType

@@ -32,6 +32,20 @@ export class Api {
   updateOneDrive(clientId: string, clientSecret: string) {
     return this.http.put<boolean>('/api/settings/onedrive', { clientId, clientSecret });
   }
+  dropboxConnect(name: string, path: string) {
+    const q = `name=${encodeURIComponent(name)}&path=${encodeURIComponent(path)}`;
+    return this.http.get<{ url: string }>(`/api/remotes/dropbox/connect?${q}`);
+  }
+  updateDropbox(clientId: string, clientSecret: string) {
+    return this.http.put<boolean>('/api/settings/dropbox', { clientId, clientSecret });
+  }
+  yandexConnect(name: string, path: string) {
+    const q = `name=${encodeURIComponent(name)}&path=${encodeURIComponent(path)}`;
+    return this.http.get<{ url: string }>(`/api/remotes/yandex/connect?${q}`);
+  }
+  updateYandex(clientId: string, clientSecret: string) {
+    return this.http.put<boolean>('/api/settings/yandex', { clientId, clientSecret });
+  }
 
   jobs() { return this.http.get<JobDto[]>('/api/jobs'); }
   createJob(body: CreateJob) { return this.http.post<string>('/api/jobs', body); }

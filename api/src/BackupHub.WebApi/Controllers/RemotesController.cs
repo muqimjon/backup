@@ -11,7 +11,12 @@ namespace BackupHub.WebApi.Controllers;
 
 public sealed record ConnectState(string Name, string Path);
 
-public sealed class RemotesController(ISender mediator, IGoogleOAuthService google, IOneDriveOAuthService onedrive) : ApiController(mediator)
+public sealed class RemotesController(
+    ISender mediator,
+    IGoogleOAuthService google,
+    IOneDriveOAuthService onedrive,
+    IDropboxOAuthService dropbox,
+    IYandexOAuthService yandex) : ApiController(mediator)
 {
     [Authorize]
     [HttpGet]
@@ -88,6 +93,50 @@ public sealed class RemotesController(ISender mediator, IGoogleOAuthService goog
     }
 
     private string OneDriveCallbackUri() => $"{Request.Scheme}://{Request.Host}/api/remotes/onedrive/callback";
+
+    [Authorize]
+    [HttpGet("dropbox/connect")]
+    public async Task<IActionResult> ConnectDropbox([FromQuery] string name, [FromQuery] string path, CancellationToken ct)
+    {
+        if (!await dropbox.IsConfiguredAsync(ct))
+            return BadRequest(new { error = "Dropbox OAuth is not configured. Add your App key and secret on the Destinations page." });
+        var state = Base64Url(JsonSerializer.Serialize(new ConnectState(name, path)));
+        return Ok(new { url = await dropbox.BuildAuthUrlAsync(state, DropboxCallbackUri(), ct) });
+    }
+
+    [AllowAnonymous]
+    [HttpGet("dropbox/callback")]
+    public async Task<IActionResult> DropboxCallback([FromQuery] string code, [FromQuery] string state, CancellationToken ct)
+    {
+        var decoded = JsonSerializer.Deserialize<ConnectState>(Encoding.UTF8.GetString(Base64UrlDecode(state)))!;
+        var tokenJson = await dropbox.ExchangeCodeAsync(code, DropboxCallbackUri(), ct);
+        await Mediator.Send(new StoreDropboxRemoteCommand(decoded.Name, decoded.Path, tokenJson), ct);
+        return Redirect("/destinations?connected=1");
+    }
+
+    private string DropboxCallbackUri() => $"{Request.Scheme}://{Request.Host}/api/remotes/dropbox/callback";
+
+    [Authorize]
+    [HttpGet("yandex/connect")]
+    public async Task<IActionResult> ConnectYandex([FromQuery] string name, [FromQuery] string path, CancellationToken ct)
+    {
+        if (!await yandex.IsConfiguredAsync(ct))
+            return BadRequest(new { error = "Yandex OAuth is not configured. Add your Client ID and password on the Destinations page." });
+        var state = Base64Url(JsonSerializer.Serialize(new ConnectState(name, path)));
+        return Ok(new { url = await yandex.BuildAuthUrlAsync(state, YandexCallbackUri(), ct) });
+    }
+
+    [AllowAnonymous]
+    [HttpGet("yandex/callback")]
+    public async Task<IActionResult> YandexCallback([FromQuery] string code, [FromQuery] string state, CancellationToken ct)
+    {
+        var decoded = JsonSerializer.Deserialize<ConnectState>(Encoding.UTF8.GetString(Base64UrlDecode(state)))!;
+        var tokenJson = await yandex.ExchangeCodeAsync(code, YandexCallbackUri(), ct);
+        await Mediator.Send(new StoreYandexRemoteCommand(decoded.Name, decoded.Path, tokenJson), ct);
+        return Redirect("/destinations?connected=1");
+    }
+
+    private string YandexCallbackUri() => $"{Request.Scheme}://{Request.Host}/api/remotes/yandex/callback";
 
     [AgentAuth]
     [HttpGet("{id:guid}/rclone-conf")]

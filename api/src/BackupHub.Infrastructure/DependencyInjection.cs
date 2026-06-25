@@ -33,6 +33,8 @@ public static class DependencyInjection
         services.AddScoped<ISettingsService, SettingsService>();
         services.AddHttpClient<IGoogleOAuthService, GoogleOAuthService>();
         services.AddHttpClient<IOneDriveOAuthService, OneDriveOAuthService>();
+        services.AddHttpClient<IDropboxOAuthService, DropboxOAuthService>();
+        services.AddHttpClient<IYandexOAuthService, YandexOAuthService>();
         services.AddHttpClient<INotificationSender, Notifications.NotificationSender>();
         services.AddHostedService<Notifications.TelegramPoller>();
 

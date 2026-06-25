@@ -143,7 +143,8 @@ log "  Project : ${PROJECT_NAME:-backup}"
 log "=========================================="
 
 if ! hub_enabled; then
-    error_exit "HUB_URL and HUB_TOKEN are required for the agent"
+    log "No HUB_URL/HUB_TOKEN set — running in standalone (.env) mode"
+    exec /usr/local/bin/entrypoint.sh
 fi
 
 hub_register || log "Registration failed — will retry"

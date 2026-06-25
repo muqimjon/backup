@@ -209,6 +209,34 @@ internal sealed class StoreOneDriveRemoteHandler(IAppDbContext db, ISecretProtec
     }
 }
 
+public sealed record StoreDropboxRemoteCommand(string Name, string Path, string TokenJson) : IRequest<Guid>;
+
+internal sealed class StoreDropboxRemoteHandler(IAppDbContext db, ISecretProtector protector)
+    : IRequestHandler<StoreDropboxRemoteCommand, Guid>
+{
+    public async ValueTask<Guid> Handle(StoreDropboxRemoteCommand command, CancellationToken ct)
+    {
+        var remote = new Remote { Name = command.Name, Type = RemoteType.Dropbox, Path = command.Path, ConfigEncrypted = protector.Protect(command.TokenJson) };
+        db.Remotes.Add(remote);
+        await db.SaveChangesAsync(ct);
+        return remote.Id;
+    }
+}
+
+public sealed record StoreYandexRemoteCommand(string Name, string Path, string TokenJson) : IRequest<Guid>;
+
+internal sealed class StoreYandexRemoteHandler(IAppDbContext db, ISecretProtector protector)
+    : IRequestHandler<StoreYandexRemoteCommand, Guid>
+{
+    public async ValueTask<Guid> Handle(StoreYandexRemoteCommand command, CancellationToken ct)
+    {
+        var remote = new Remote { Name = command.Name, Type = RemoteType.Yandex, Path = command.Path, ConfigEncrypted = protector.Protect(command.TokenJson) };
+        db.Remotes.Add(remote);
+        await db.SaveChangesAsync(ct);
+        return remote.Id;
+    }
+}
+
 public sealed record StoreGoogleRemoteCommand(string Name, string Path, string TokenJson) : IRequest<Guid>;
 
 internal sealed class StoreGoogleRemoteHandler(IAppDbContext db, ISecretProtector protector)

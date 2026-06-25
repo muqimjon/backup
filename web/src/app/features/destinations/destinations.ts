@@ -6,16 +6,18 @@ import { remoteTypeLabel } from '../../core/format';
 import { Lang } from '../../core/lang';
 import { Modal } from '../../shared/modal';
 
-type Kind = 'gdrive' | 'onedrive' | 's3' | 'b2' | 'sftp' | 'webdav' | 'custom';
+type Kind = 'gdrive' | 'onedrive' | 'dropbox' | 'yandex' | 's3' | 'b2' | 'sftp' | 'webdav' | 'custom';
 
 const CATALOG: Record<Kind, { title: string; covers: string }> = {
   gdrive: { title: 'Google Drive', covers: 'Google Drive — one-button OAuth' },
   onedrive: { title: 'OneDrive', covers: 'Microsoft OneDrive (personal & business) — one-button OAuth' },
+  dropbox: { title: 'Dropbox', covers: 'Dropbox — one-button OAuth' },
+  yandex: { title: 'Yandex Disk', covers: 'Yandex Disk — one-button OAuth' },
   s3: { title: 'S3-compatible', covers: 'AWS S3 · MinIO · Cloudflare R2 · Wasabi · Backblaze B2 (S3) · DigitalOcean Spaces · any S3 API' },
   b2: { title: 'Backblaze B2', covers: 'Backblaze B2 — native application key' },
   sftp: { title: 'SFTP / SSH', covers: 'any SSH/SFTP server · VPS · NAS' },
   webdav: { title: 'WebDAV', covers: 'Nextcloud · ownCloud · Yandex Disk · Koofr · any WebDAV server' },
-  custom: { title: 'Custom (rclone)', covers: 'Dropbox · pCloud · Storj · Mega · Jottacloud · Yandex · 70+ rclone backends' },
+  custom: { title: 'Custom (rclone)', covers: 'pCloud · Storj · Mega · Jottacloud · Box · 70+ rclone backends' },
 };
 
 @Component({
@@ -90,6 +92,40 @@ const CATALOG: Record<Kind, { title: string; covers: string }> = {
               <div class="row" style="gap:10px;margin-top:16px">
                 <button (click)="saveOneDriveCreds()" [disabled]="busy()">Save credentials</button>
                 @if (oneDriveConfigured()) { <button class="ghost" (click)="editOneDrive.set(false)">Cancel</button> }
+              </div>
+            }
+          }
+          @case ('dropbox') {
+            @if (dropboxConfigured() && !editDropbox()) {
+              <p class="ok-note">✓ Dropbox app configured. <a class="lnk" (click)="editDropbox.set(true)">Change credentials</a></p>
+              <label>Name</label><input [(ngModel)]="name" />
+              <label>Folder path</label><input [(ngModel)]="path" placeholder="backups/myapp" />
+              <button class="g" (click)="connectDropbox()" [disabled]="busy()">{{ busy() ? 'Redirecting…' : 'Connect Dropbox' }}</button>
+              <p class="hint">Connect opens Dropbox's consent screen. After you approve, it's linked <b>automatically</b> — no token to copy.</p>
+            } @else {
+              <p class="hint">One-time setup: create an app at <b>dropbox.com/developers/apps</b> (Scoped access → Full Dropbox), add redirect URI <code>{{ origin }}/api/remotes/dropbox/callback</code>, enable <code>files.content.read</code> + <code>files.content.write</code>, then paste the App key and App secret.</p>
+              <label>App key (Client ID)</label><input [(ngModel)]="dbClientId" />
+              <label>App secret</label><input type="password" [(ngModel)]="dbClientSecret" />
+              <div class="row" style="gap:10px;margin-top:16px">
+                <button (click)="saveDropboxCreds()" [disabled]="busy()">Save credentials</button>
+                @if (dropboxConfigured()) { <button class="ghost" (click)="editDropbox.set(false)">Cancel</button> }
+              </div>
+            }
+          }
+          @case ('yandex') {
+            @if (yandexConfigured() && !editYandex()) {
+              <p class="ok-note">✓ Yandex app configured. <a class="lnk" (click)="editYandex.set(true)">Change credentials</a></p>
+              <label>Name</label><input [(ngModel)]="name" />
+              <label>Folder path</label><input [(ngModel)]="path" placeholder="backups/myapp" />
+              <button class="g" (click)="connectYandex()" [disabled]="busy()">{{ busy() ? 'Redirecting…' : 'Connect Yandex Disk' }}</button>
+              <p class="hint">Connect opens Yandex's consent screen. After you approve, it's linked <b>automatically</b>.</p>
+            } @else {
+              <p class="hint">One-time setup: create an app at <b>oauth.yandex.com</b>, add the <b>Web service</b> platform with callback URI <code>{{ origin }}/api/remotes/yandex/callback</code>, grant <b>Yandex.Disk REST API</b> (read+write), then paste the Client ID and password.</p>
+              <label>Client ID</label><input [(ngModel)]="yaClientId" />
+              <label>Client password (secret)</label><input type="password" [(ngModel)]="yaClientSecret" />
+              <div class="row" style="gap:10px;margin-top:16px">
+                <button (click)="saveYandexCreds()" [disabled]="busy()">Save credentials</button>
+                @if (yandexConfigured()) { <button class="ghost" (click)="editYandex.set(false)">Cancel</button> }
               </div>
             }
           }
@@ -178,7 +214,7 @@ export class Destinations {
   protected api = inject(Api);
   lang = inject(Lang);
   protected catalog = CATALOG;
-  protected kinds: Kind[] = ['gdrive', 'onedrive', 's3', 'b2', 'sftp', 'webdav', 'custom'];
+  protected kinds: Kind[] = ['gdrive', 'onedrive', 'dropbox', 'yandex', 's3', 'b2', 'sftp', 'webdav', 'custom'];
   protected origin = location.origin;
 
   items = signal<RemoteDto[]>([]);
@@ -190,12 +226,18 @@ export class Destinations {
   editGoogle = signal(false);
   oneDriveConfigured = signal(false);
   editOneDrive = signal(false);
+  dropboxConfigured = signal(false);
+  editDropbox = signal(false);
+  yandexConfigured = signal(false);
+  editYandex = signal(false);
 
   name = 's3';
   path = 'backups/myapp';
   custom = '';
   gClientId = ''; gClientSecret = '';
   odClientId = ''; odClientSecret = '';
+  dbClientId = ''; dbClientSecret = '';
+  yaClientId = ''; yaClientSecret = '';
   s3 = { endpoint: '', accessKey: '', secretKey: '', region: '' };
   b2 = { account: '', key: '' };
   sftp = { host: '', port: 22, username: '', password: '', keyFile: '' };
@@ -205,7 +247,12 @@ export class Destinations {
 
   constructor() {
     this.load();
-    this.api.settings().subscribe(s => { this.googleConfigured.set(s.googleConfigured); this.oneDriveConfigured.set(s.oneDriveConfigured); });
+    this.api.settings().subscribe(s => {
+      this.googleConfigured.set(s.googleConfigured);
+      this.oneDriveConfigured.set(s.oneDriveConfigured);
+      this.dropboxConfigured.set(s.dropboxConfigured);
+      this.yandexConfigured.set(s.yandexConfigured);
+    });
   }
 
   load() { this.api.remotes().subscribe(r => this.items.set(r)); }
@@ -258,6 +305,42 @@ export class Destinations {
     this.busy.set(true);
     this.error.set(null);
     this.api.oneDriveConnect(this.name || 'onedrive', this.path).subscribe({
+      next: res => (window.location.href = res.url),
+      error: e => { this.busy.set(false); this.error.set(this.msg(e)); },
+    });
+  }
+
+  saveDropboxCreds() {
+    if (!this.dbClientId || !this.dbClientSecret) return;
+    this.busy.set(true);
+    this.api.updateDropbox(this.dbClientId, this.dbClientSecret).subscribe({
+      next: () => { this.busy.set(false); this.dropboxConfigured.set(true); this.editDropbox.set(false); this.dbClientSecret = ''; },
+      error: e => { this.busy.set(false); this.error.set(this.msg(e)); },
+    });
+  }
+
+  connectDropbox() {
+    this.busy.set(true);
+    this.error.set(null);
+    this.api.dropboxConnect(this.name || 'dropbox', this.path).subscribe({
+      next: res => (window.location.href = res.url),
+      error: e => { this.busy.set(false); this.error.set(this.msg(e)); },
+    });
+  }
+
+  saveYandexCreds() {
+    if (!this.yaClientId || !this.yaClientSecret) return;
+    this.busy.set(true);
+    this.api.updateYandex(this.yaClientId, this.yaClientSecret).subscribe({
+      next: () => { this.busy.set(false); this.yandexConfigured.set(true); this.editYandex.set(false); this.yaClientSecret = ''; },
+      error: e => { this.busy.set(false); this.error.set(this.msg(e)); },
+    });
+  }
+
+  connectYandex() {
+    this.busy.set(true);
+    this.error.set(null);
+    this.api.yandexConnect(this.name || 'yandex', this.path).subscribe({
       next: res => (window.location.href = res.url),
       error: e => { this.busy.set(false); this.error.set(this.msg(e)); },
     });

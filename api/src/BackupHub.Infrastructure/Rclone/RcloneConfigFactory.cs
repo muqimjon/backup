@@ -20,6 +20,8 @@ public sealed class RcloneConfigFactory(ISecretProtector protector) : IRcloneCon
             RemoteType.Sftp => BuildSftp(data),
             RemoteType.WebDav => BuildWebDav(data),
             RemoteType.OneDrive => BuildOneDrive(data),
+            RemoteType.Dropbox => $"[remote]\ntype = dropbox\ntoken = {data}\n",
+            RemoteType.Yandex => $"[remote]\ntype = yandex\ntoken = {data}\n",
             RemoteType.Custom => BuildCustom(data),
             _ => throw new NotSupportedException($"Remote type {remote.Type} not supported"),
         };

@@ -24,6 +24,14 @@ public sealed class SettingsController(ISender mediator, IConfiguration config) 
     public async Task<ActionResult<bool>> UpdateOneDrive(UpdateOneDriveSettingsCommand command, CancellationToken ct)
         => Ok(await Mediator.Send(command, ct));
 
+    [HttpPut("dropbox")]
+    public async Task<ActionResult<bool>> UpdateDropbox(UpdateDropboxSettingsCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command, ct));
+
+    [HttpPut("yandex")]
+    public async Task<ActionResult<bool>> UpdateYandex(UpdateYandexSettingsCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command, ct));
+
     [HttpPut("locale")]
     public async Task<ActionResult<bool>> UpdateLocale(UpdateLocaleCommand command, CancellationToken ct)
         => Ok(await Mediator.Send(command, ct));
