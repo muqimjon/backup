@@ -40,10 +40,17 @@ case "$driver" in
     postgres)
         : "${PG_HOST:?PG_HOST is required}" "${PG_USER:?}" "${PG_DATABASE:?}"
         export PGPASSWORD="${PG_PASSWORD:-}"
+        # Replace, don't merge: wipe the schema so the dump restores into a clean DB.
+        # Without this, a plain dump's CREATE statements collide with existing objects.
+        log "Resetting target schema for a clean restore…"
+        psql --host="$PG_HOST" --port="${PG_PORT:-5432}" \
+            --username="$PG_USER" --dbname="$PG_DATABASE" --no-password -v ON_ERROR_STOP=1 \
+            -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;" \
+            || error_exit "Could not reset target schema"
         "${extract[@]}" | psql \
             --host="$PG_HOST" --port="${PG_PORT:-5432}" \
             --username="$PG_USER" --dbname="$PG_DATABASE" \
-            --no-password
+            --no-password -v ON_ERROR_STOP=1
         ;;
     mysql)
         : "${MYSQL_HOST:?MYSQL_HOST is required}" "${MYSQL_USER:?}" "${MYSQL_DATABASE:?}"

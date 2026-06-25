@@ -9,10 +9,14 @@ set -euo pipefail
 
 export PGPASSWORD="${PG_PASSWORD:-}"
 
+# --clean --if-exists makes the dump self-cleaning so it restores over an
+# existing database without "already exists" collisions.
 exec pg_dump \
     --host="${PG_HOST}" \
     --port="${PG_PORT:-5432}" \
     --username="${PG_USER}" \
     --dbname="${PG_DATABASE}" \
     --format=plain \
+    --clean \
+    --if-exists \
     --no-password
