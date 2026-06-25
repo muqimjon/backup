@@ -16,7 +16,7 @@ public sealed record RunDto(
     long Bytes,
     string? Message);
 
-public sealed record GetRecentRunsQuery(int Take = 100) : IRequest<IReadOnlyList<RunDto>>;
+public sealed record GetRecentRunsQuery(int Take = 100, int Skip = 0) : IRequest<IReadOnlyList<RunDto>>;
 
 internal sealed class GetRecentRunsHandler(IAppDbContext db)
     : IRequestHandler<GetRecentRunsQuery, IReadOnlyList<RunDto>>
@@ -24,6 +24,7 @@ internal sealed class GetRecentRunsHandler(IAppDbContext db)
     public async ValueTask<IReadOnlyList<RunDto>> Handle(GetRecentRunsQuery query, CancellationToken ct)
         => await db.Runs
             .OrderByDescending(r => r.StartedAt)
+            .Skip(Math.Max(0, query.Skip))
             .Take(Math.Clamp(query.Take, 1, 500))
             .Select(r => new RunDto(
                 r.Id, r.JobId, r.Job.Name, r.Type, r.Status,

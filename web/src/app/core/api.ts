@@ -37,7 +37,7 @@ export class Api {
     return this.http.post<string>(`/api/agents/${agentId}/enqueue`, { kind, jobId });
   }
 
-  history(take = 100) { return this.http.get<RunDto[]>(`/api/history?take=${take}`); }
+  history(take = 100, skip = 0) { return this.http.get<RunDto[]>(`/api/history?take=${take}&skip=${skip}`); }
   stats() { return this.http.get<StatsDto>('/api/stats'); }
 
   versions(jobId: string) { return this.http.get<BackupVersionDto[]>(`/api/jobs/${jobId}/versions`); }
@@ -49,6 +49,7 @@ export class Api {
   updateGoogle(clientId: string, clientSecret: string) {
     return this.http.put<boolean>('/api/settings/google', { clientId, clientSecret });
   }
+  saveLocale(locale: string) { return this.http.put<boolean>('/api/settings/locale', { locale }); }
 
   notifications() { return this.http.get<NotificationSettingsDto>('/api/notifications'); }
   saveNotifyMode(notifyOn: string) { return this.http.put<boolean>('/api/notifications/mode', { notifyOn }); }

@@ -59,12 +59,7 @@ internal sealed class RecordRunEventHandler(
             run.Type, run.Status, run.StartedAt, run.FinishedAt, run.Bytes, run.Message), ct);
 
         if (command.Status is RunStatus.Ok or RunStatus.Fail)
-        {
-            var level = command.Status == RunStatus.Fail ? "error" : "success";
-            var title = $"{project} · {command.Type} {(command.Status == RunStatus.Fail ? "FAILED" : "OK")}";
-            var body = $"{job?.Name ?? driver}: {command.Message ?? command.Type.ToString()}";
-            await notifications.DispatchAsync(level, title, body, ct);
-        }
+            await notifications.DispatchRunAsync(command.Type, command.Status, project, job?.Name ?? driver, command.Message, ct);
 
         return run.Id;
     }

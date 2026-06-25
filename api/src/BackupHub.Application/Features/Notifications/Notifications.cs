@@ -105,13 +105,19 @@ internal sealed class UpdateWebhookHandler(ISettingsService settings)
 
 public sealed record UpdateTelegramTokenCommand(string? TelegramBotToken) : IRequest<bool>;
 
-internal sealed class UpdateTelegramTokenHandler(ISettingsService settings)
+internal sealed class UpdateTelegramTokenHandler(ISettingsService settings, INotificationSender sender)
     : IRequestHandler<UpdateTelegramTokenCommand, bool>
 {
     public async ValueTask<bool> Handle(UpdateTelegramTokenCommand command, CancellationToken ct)
     {
-        if (!string.IsNullOrWhiteSpace(command.TelegramBotToken))
-            await settings.SetAsync(Keys.TelegramBotToken, command.TelegramBotToken, ct);
+        if (string.IsNullOrWhiteSpace(command.TelegramBotToken))
+            return true;
+
+        var error = await sender.ValidateTelegramTokenAsync(command.TelegramBotToken.Trim(), ct);
+        if (error is not null)
+            throw new Common.ConflictException(error);
+
+        await settings.SetAsync(Keys.TelegramBotToken, command.TelegramBotToken.Trim(), ct);
         return true;
     }
 }

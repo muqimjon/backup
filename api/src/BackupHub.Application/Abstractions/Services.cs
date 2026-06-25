@@ -31,6 +31,7 @@ public interface ISettingsService
 
 public interface INotificationSender
 {
-    Task DispatchAsync(string level, string title, string message, CancellationToken ct = default);
+    Task DispatchRunAsync(Domain.Enums.RunType type, Domain.Enums.RunStatus status, string project, string driver, string? message, CancellationToken ct = default);
     Task<string> SendTestAsync(CancellationToken ct = default);
+    Task<string?> ValidateTelegramTokenAsync(string token, CancellationToken ct = default);
 }

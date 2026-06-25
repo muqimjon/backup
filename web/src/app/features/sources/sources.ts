@@ -19,10 +19,10 @@ import { Modal } from '../../shared/modal';
 
     <div class="card">
       @if (items().length === 0) {
-        <p class="muted">No sources yet. Add a database or bucket to back up.</p>
+        <p class="muted">{{ lang.t('empty.sources') }}</p>
       } @else {
         <table>
-          <thead><tr><th>Name</th><th>Engine</th><th>Host</th><th>Target</th><th></th></tr></thead>
+          <thead><tr><th>{{ lang.t('f.name') }}</th><th>{{ lang.t('f.engine') }}</th><th>{{ lang.t('f.host') }}</th><th>{{ lang.t('f.target') }}</th><th></th></tr></thead>
           <tbody>
             @for (s of items(); track s.id) {
               <tr>
@@ -37,10 +37,10 @@ import { Modal } from '../../shared/modal';
     </div>
 
     @if (adding()) {
-      <app-modal title="Add source" (close)="adding.set(false)">
+      <app-modal [title]="lang.t('m.addSource')" (close)="adding.set(false)">
         <div class="grid g2">
-          <div><label>Name</label><input [(ngModel)]="form.name" /></div>
-          <div><label>Engine</label>
+          <div><label>{{ lang.t('f.name') }}</label><input [(ngModel)]="form.name" /></div>
+          <div><label>{{ lang.t('f.engine') }}</label>
             <select [(ngModel)]="form.engine">
               <option [ngValue]="0">PostgreSQL</option>
               <option [ngValue]="1">MySQL</option>
@@ -48,16 +48,16 @@ import { Modal } from '../../shared/modal';
               <option [ngValue]="3">MinIO / S3</option>
             </select>
           </div>
-          <div><label>Host</label><input [(ngModel)]="form.host" placeholder="host.docker.internal" /></div>
-          <div><label>Port</label><input type="number" [(ngModel)]="form.port" /></div>
-          <div><label>Username</label><input [(ngModel)]="form.username" /></div>
-          <div><label>Password / Secret</label><input type="password" [(ngModel)]="form.secret" /></div>
-          <div class="span2"><label>Database / Bucket</label><input [(ngModel)]="form.target" /></div>
+          <div><label>{{ lang.t('f.host') }}</label><input [(ngModel)]="form.host" placeholder="host.docker.internal" /></div>
+          <div><label>{{ lang.t('f.port') }}</label><input type="number" [(ngModel)]="form.port" /></div>
+          <div><label>{{ lang.t('f.username') }}</label><input [(ngModel)]="form.username" /></div>
+          <div><label>{{ lang.t('f.password') }}</label><input type="password" [(ngModel)]="form.secret" /></div>
+          <div class="span2"><label>{{ lang.t('f.target') }}</label><input [(ngModel)]="form.target" /></div>
         </div>
         @if (error()) { <div class="err">{{ error() }}</div> }
         <div class="row foot"><div class="spacer"></div>
-          <button class="ghost" (click)="adding.set(false)">Cancel</button>
-          <button (click)="save()" [disabled]="saving()">Save source</button>
+          <button class="ghost" (click)="adding.set(false)">{{ lang.t('btn.cancel') }}</button>
+          <button (click)="save()" [disabled]="saving()">{{ lang.t('btn.save') }}</button>
         </div>
       </app-modal>
     }

@@ -30,15 +30,15 @@ const CATALOG: Record<Kind, { title: string; covers: string }> = {
 
     <div class="card">
       @if (items().length === 0) {
-        <p class="muted">No destinations yet. Add a cloud or server to upload backups to.</p>
+        <p class="muted">{{ lang.t('empty.destinations') }}</p>
       } @else {
         <table>
-          <thead><tr><th>Name</th><th>Type</th><th>Path</th><th></th></tr></thead>
+          <thead><tr><th>{{ lang.t('f.name') }}</th><th>{{ lang.t('f.type') }}</th><th>{{ lang.t('f.path') }}</th><th></th></tr></thead>
           <tbody>
             @for (r of items(); track r.id) {
               <tr>
                 <td>{{ r.name }}</td><td>{{ remoteTypeLabel(r.type) }}</td><td class="muted">{{ r.path }}</td>
-                <td class="right"><button class="ghost danger" (click)="remove(r)">Delete</button></td>
+                <td class="right"><button class="ghost danger" (click)="remove(r)">{{ lang.t('btn.delete') }}</button></td>
               </tr>
             }
           </tbody>
@@ -47,7 +47,7 @@ const CATALOG: Record<Kind, { title: string; covers: string }> = {
     </div>
 
     @if (adding()) {
-      <app-modal title="Add destination" (close)="adding.set(false)">
+      <app-modal [title]="lang.t('m.addDestination')" (close)="adding.set(false)">
         <div class="kinds">
           @for (k of kinds; track k) {
             <button class="chip" [class.on]="kind() === k" (click)="select(k)" [title]="catalog[k].covers">

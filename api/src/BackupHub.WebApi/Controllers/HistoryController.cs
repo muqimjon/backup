@@ -9,6 +9,6 @@ namespace BackupHub.WebApi.Controllers;
 public sealed class HistoryController(ISender mediator) : ApiController(mediator)
 {
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<RunDto>>> GetRecent([FromQuery] int take = 100, CancellationToken ct = default)
-        => Ok(await Mediator.Send(new GetRecentRunsQuery(take), ct));
+    public async Task<ActionResult<IReadOnlyList<RunDto>>> GetRecent([FromQuery] int take = 100, [FromQuery] int skip = 0, CancellationToken ct = default)
+        => Ok(await Mediator.Send(new GetRecentRunsQuery(take, skip), ct));
 }

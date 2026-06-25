@@ -19,7 +19,7 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
     @if (notice()) { <div class="notice">{{ notice() }}</div> }
 
     @if (items().length === 0) {
-      <div class="card"><p class="muted">No jobs yet. A job ties a source to a destination and runs it on a schedule.</p></div>
+      <div class="card"><p class="muted">{{ lang.t('empty.jobs') }}</p></div>
     } @else {
       <div class="jobs">
         @for (j of items(); track j.id) {
@@ -58,7 +58,7 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
     @if (formOpen()) {
       <div class="backdrop" (click)="formOpen.set(false)">
         <div class="modal" (click)="$event.stopPropagation()">
-          <div class="mhead"><h3>{{ editingId() ? 'Edit job' : 'Add job' }}</h3><button class="x" (click)="formOpen.set(false)">✕</button></div>
+          <div class="mhead"><h3>{{ editingId() ? lang.t('m.editJob') : lang.t('m.addJob') }}</h3><button class="x" (click)="formOpen.set(false)">✕</button></div>
           <div class="mbody">
             @if (sources().length === 0 || remotes().length === 0) {
               <div class="hint">
@@ -67,20 +67,20 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
               </div>
             }
             <div class="grid g2">
-              <div><label>Name</label><input [(ngModel)]="form.name" /></div>
-              <div><label>Agent</label>
+              <div><label>{{ lang.t('f.name') }}</label><input [(ngModel)]="form.name" /></div>
+              <div><label>{{ lang.t('f.agent') }}</label>
                 <select [(ngModel)]="form.agentId">
                   <option [ngValue]="null">— unassigned —</option>
                   @for (a of agents(); track a.id) { <option [ngValue]="a.id">{{ a.name }} ({{ a.project }})</option> }
                 </select>
               </div>
-              <div><label>Source</label>
+              <div><label>{{ lang.t('f.source') }}</label>
                 <select [(ngModel)]="form.sourceId">
                   <option [ngValue]="''" disabled>Select source</option>
                   @for (s of sources(); track s.id) { <option [ngValue]="s.id">{{ s.name }}</option> }
                 </select>
               </div>
-              <div><label>Destination</label>
+              <div><label>{{ lang.t('f.destination') }}</label>
                 <select [(ngModel)]="form.remoteId">
                   <option [ngValue]="''" disabled>Select destination</option>
                   @for (r of remotes(); track r.id) { <option [ngValue]="r.id">{{ r.name }}</option> }
@@ -100,8 +100,8 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
             <div class="row foot">
               <label class="en"><input type="checkbox" [(ngModel)]="enabled" /> Enabled</label>
               <div class="spacer"></div>
-              <button class="ghost" (click)="formOpen.set(false)">Cancel</button>
-              <button (click)="save()" [disabled]="saving() || !form.name || !form.sourceId || !form.remoteId">{{ editingId() ? 'Save changes' : 'Create job' }}</button>
+              <button class="ghost" (click)="formOpen.set(false)">{{ lang.t('btn.cancel') }}</button>
+              <button (click)="save()" [disabled]="saving() || !form.name || !form.sourceId || !form.remoteId">{{ lang.t('btn.save') }}</button>
             </div>
           </div>
         </div>

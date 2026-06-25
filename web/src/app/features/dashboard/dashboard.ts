@@ -51,7 +51,7 @@ import { formatBytes, runTypeLabel, statusClass, statusLabel } from '../../core/
     </div>
 
     <div class="card">
-      <h3>Recent runs</h3>
+      <h3>{{ lang.t('recentRuns') }}</h3>
       @if (runs().length === 0) {
         <p class="muted">No runs yet. Once an agent runs a backup it will appear here.</p>
       } @else {
@@ -121,6 +121,6 @@ export class Dashboard implements OnInit, OnDestroy {
 
   private refresh() {
     this.api.stats().subscribe(s => this.stats.set(s));
-    this.api.history(20).subscribe(r => this.runs.set(r));
+    this.api.history(8).subscribe(r => this.runs.set(r));
   }
 }

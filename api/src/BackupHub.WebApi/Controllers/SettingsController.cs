@@ -15,4 +15,8 @@ public sealed class SettingsController(ISender mediator) : ApiController(mediato
     [HttpPut("google")]
     public async Task<ActionResult<bool>> UpdateGoogle(UpdateGoogleSettingsCommand command, CancellationToken ct)
         => Ok(await Mediator.Send(command, ct));
+
+    [HttpPut("locale")]
+    public async Task<ActionResult<bool>> UpdateLocale(UpdateLocaleCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command, ct));
 }

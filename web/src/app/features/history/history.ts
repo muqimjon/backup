@@ -13,15 +13,15 @@ import { formatBytes, runTypeLabel, statusClass, statusLabel } from '../../core/
     <div class="row">
       <div><h1>{{ lang.t('history.title') }}</h1><p class="muted">{{ lang.t('history.subtitle') }}</p></div>
       <div class="spacer"></div>
-      <button class="ghost" (click)="load()">{{ lang.t('btn.refresh') }}</button>
+      <button class="ghost" (click)="reload()">{{ lang.t('btn.refresh') }}</button>
     </div>
 
     <div class="card">
       @if (items().length === 0) {
-        <p class="muted">No runs recorded yet.</p>
+        <p class="muted">{{ lang.t('empty.history') }}</p>
       } @else {
         <table>
-          <thead><tr><th>Status</th><th>Type</th><th>Job</th><th>Size</th><th>Started</th><th>Message</th></tr></thead>
+          <thead><tr><th>{{ lang.t('f.status') }}</th><th>{{ lang.t('f.type') }}</th><th>{{ lang.t('f.job') }}</th><th>{{ lang.t('f.size') }}</th><th>{{ lang.t('f.started') }}</th><th>{{ lang.t('f.message') }}</th></tr></thead>
           <tbody>
             @for (r of items(); track r.id) {
               <tr>
@@ -35,25 +35,48 @@ import { formatBytes, runTypeLabel, statusClass, statusLabel } from '../../core/
             }
           </tbody>
         </table>
+        @if (hasMore()) {
+          <div class="more"><button class="ghost" (click)="loadMore()" [disabled]="loading()">{{ loading() ? '…' : lang.t('loadMore') }}</button></div>
+        }
       }
     </div>
   `,
   styles: `
     h1 { margin: 0; }
     .msg { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .more { display: flex; justify-content: center; padding-top: 14px; }
   `,
 })
 export class History {
   private api = inject(Api);
   lang = inject(Lang);
+
+  private readonly pageSize = 25;
   items = signal<RunDto[]>([]);
+  loading = signal(false);
+  hasMore = signal(false);
 
   statusClass = statusClass;
   statusLabel = statusLabel;
   runTypeLabel = runTypeLabel;
   formatBytes = formatBytes;
 
-  constructor() { this.load(); }
+  constructor() { this.reload(); }
 
-  load() { this.api.history(200).subscribe(r => this.items.set(r)); }
+  reload() {
+    this.items.set([]);
+    this.hasMore.set(false);
+    this.fetch(0);
+  }
+
+  loadMore() { this.fetch(this.items().length); }
+
+  private fetch(skip: number) {
+    this.loading.set(true);
+    this.api.history(this.pageSize, skip).subscribe(rows => {
+      this.items.update(cur => skip === 0 ? rows : [...cur, ...rows]);
+      this.hasMore.set(rows.length === this.pageSize);
+      this.loading.set(false);
+    });
+  }
 }

@@ -22,17 +22,23 @@ import { AgentDto } from '../../core/models';
       <p>An agent is a small <b>worker container</b> (bash + pg_dump/mysqldump/rclone) — <b>not AI</b>. You run one
         per server. It asks this hub “what should I back up?”, runs the jobs, and reports results back. That’s how
         you manage everything from the web without ever SSHing into the server.</p>
-      <p class="muted"><b>Add an agent:</b> run the <code>muqimjon/backuphub-agent</code> container on a server,
-        pointed at this hub (<code>HUB_URL</code> + <code>HUB_TOKEN</code>) — it registers itself and appears below.
-        <b>Remove:</b> delete it here and stop that container.</p>
+      <p class="muted"><b>Add an agent</b> on any server — run this once, and it auto-registers here:</p>
+      <pre>docker run -d --restart=always \
+  -e HUB_URL=https://your-hub:8080 \
+  -e HUB_TOKEN=&lt;your hub token&gt; \
+  -e AGENT_NAME=server-2 \
+  --add-host host.docker.internal:host-gateway \
+  -v bh_agent:/backup \
+  muqimjon/backuphub-agent</pre>
+      <p class="muted"><b>Remove:</b> delete it here and stop that container (otherwise it re-registers).</p>
     </div>
 
     <div class="card">
       @if (items().length === 0) {
-        <p class="muted">No agents registered yet.</p>
+        <p class="muted">{{ lang.t('empty.agents') }}</p>
       } @else {
         <table>
-          <thead><tr><th>Name</th><th>Host</th><th>Project</th><th>Version</th><th>Last seen</th><th></th></tr></thead>
+          <thead><tr><th>{{ lang.t('f.name') }}</th><th>{{ lang.t('f.host') }}</th><th>{{ lang.t('f.project') }}</th><th>{{ lang.t('f.version') }}</th><th>{{ lang.t('f.lastSeen') }}</th><th></th></tr></thead>
           <tbody>
             @for (a of items(); track a.id) {
               <tr>
@@ -54,6 +60,8 @@ import { AgentDto } from '../../core/models';
     h3 { margin-bottom: 8px; }
     .info { margin-bottom: 16px; }
     .info p { margin: 0 0 8px; line-height: 1.55; }
+    .info pre { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+                padding: 12px 14px; font-size: 12px; overflow-x: auto; margin: 4px 0 12px; }
     .right { text-align: right; }
     .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-left: 4px; }
     .dot.live { background: var(--ok); }

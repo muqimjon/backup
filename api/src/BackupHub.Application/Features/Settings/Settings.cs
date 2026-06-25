@@ -30,3 +30,16 @@ internal sealed class UpdateGoogleSettingsHandler(ISettingsService settings)
         return true;
     }
 }
+
+public sealed record UpdateLocaleCommand(string Locale) : IRequest<bool>;
+
+internal sealed class UpdateLocaleHandler(ISettingsService settings)
+    : IRequestHandler<UpdateLocaleCommand, bool>
+{
+    public async ValueTask<bool> Handle(UpdateLocaleCommand command, CancellationToken ct)
+    {
+        var locale = command.Locale is "ru" or "uz" ? command.Locale : "en";
+        await settings.SetAsync("App.Lang", locale, ct);
+        return true;
+    }
+}
