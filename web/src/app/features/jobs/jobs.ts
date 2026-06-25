@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Api } from '../../core/api';
-import { AgentDto, CreateJob, JobDto, RemoteDto, SourceDto } from '../../core/models';
+import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '../../core/models';
 
 @Component({
   selector: 'app-jobs',
@@ -38,6 +38,8 @@ import { AgentDto, CreateJob, JobDto, RemoteDto, SourceDto } from '../../core/mo
           </div>
           <div><label>Backup schedule (cron)</label><input [(ngModel)]="form.backupSchedule" /></div>
           <div><label>Upload schedule (optional)</label><input [(ngModel)]="form.uploadSchedule" /></div>
+          <div><label>Cleanup schedule (optional)</label><input [(ngModel)]="form.cleanupSchedule" /></div>
+          <div><label>Restore-drill schedule (optional)</label><input [(ngModel)]="form.drillSchedule" placeholder="0 4 * * 0" /></div>
           <div><label>Min local</label><input type="number" [(ngModel)]="form.minLocalBackups" /></div>
           <div><label>Max local</label><input type="number" [(ngModel)]="form.maxLocalBackups" /></div>
           <div><label>Max remote</label><input type="number" [(ngModel)]="form.maxRemoteBackups" /></div>
@@ -54,13 +56,20 @@ import { AgentDto, CreateJob, JobDto, RemoteDto, SourceDto } from '../../core/mo
         <p class="muted">No jobs yet.</p>
       } @else {
         <table>
-          <thead><tr><th>Name</th><th>Source</th><th>Destination</th><th>Schedule</th><th>Retention</th></tr></thead>
+          <thead><tr><th>Name</th><th>Source</th><th>Destination</th><th>Schedule</th><th>Retention</th><th></th></tr></thead>
           <tbody>
             @for (j of items(); track j.id) {
               <tr>
                 <td>{{ j.name }}</td><td>{{ j.sourceName }}</td><td>{{ j.remoteName }}</td>
                 <td class="muted">{{ j.backupSchedule }}</td>
                 <td class="muted">{{ j.minLocalBackups }}–{{ j.maxLocalBackups }} local · {{ j.maxRemoteBackups }} remote</td>
+                <td>
+                  @if (j.agentId) {
+                    <button class="ghost" (click)="runDrill(j)">Run drill</button>
+                  } @else {
+                    <span class="muted">no agent</span>
+                  }
+                </td>
               </tr>
             }
           </tbody>
@@ -96,6 +105,11 @@ export class Jobs {
   }
 
   load() { this.api.jobs().subscribe(j => this.items.set(j)); }
+
+  runDrill(job: JobDto) {
+    if (!job.agentId) return;
+    this.api.enqueue(job.agentId, CommandKind.RunDrill, job.id).subscribe();
+  }
 
   save() {
     this.saving.set(true);

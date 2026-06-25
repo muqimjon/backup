@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run-job.sh JOB_ID PHASE
 # Loads a hub-defined job's env file and runs one phase against it.
-# PHASE: backup | upload | cleanup
+# PHASE: backup | upload | cleanup | drill
 set -euo pipefail
 
 readonly LOG_PREFIX="job"
@@ -24,5 +24,6 @@ case "$phase" in
     backup)  export RUN_TYPE=0; exec /usr/local/bin/backup.sh ;;
     upload)  export RUN_TYPE=1; exec /usr/local/bin/upload.sh ;;
     cleanup) export RUN_TYPE=2; exec /usr/local/bin/cleanup.sh ;;
+    drill)   export RUN_TYPE=3; exec /usr/local/bin/drill.sh ;;
     *)       error_exit "Unknown phase: ${phase}" ;;
 esac

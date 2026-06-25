@@ -67,7 +67,7 @@ sync_jobs() {
     local jobs; jobs=$(api "${HUB_URL}/api/agents/${id}/jobs" 2>/dev/null) || { log "job sync failed"; return 0; }
 
     : > "${CRONTAB_FILE}.new"
-    local count i job jid bs us cs
+    local count i job jid bs us cs ds
     count=$(echo "$jobs" | jq 'length' 2>/dev/null || echo 0)
     for ((i = 0; i < count; i++)); do
         job=$(echo "$jobs" | jq -c ".[$i]")
@@ -76,9 +76,11 @@ sync_jobs() {
         bs=$(echo "$job" | jq -r '.backupSchedule')
         us=$(echo "$job" | jq -r '.uploadSchedule // empty')
         cs=$(echo "$job" | jq -r '.cleanupSchedule // empty')
+        ds=$(echo "$job" | jq -r '.drillSchedule // empty')
         echo "${bs} /usr/local/bin/run-job.sh ${jid} backup" >> "${CRONTAB_FILE}.new"
         [ -n "$us" ] && echo "${us} /usr/local/bin/run-job.sh ${jid} upload" >> "${CRONTAB_FILE}.new"
         [ -n "$cs" ] && echo "${cs} /usr/local/bin/run-job.sh ${jid} cleanup" >> "${CRONTAB_FILE}.new"
+        [ -n "$ds" ] && echo "${ds} /usr/local/bin/run-job.sh ${jid} drill" >> "${CRONTAB_FILE}.new"
     done
 
     if ! cmp -s "${CRONTAB_FILE}.new" "$CRONTAB_FILE" 2>/dev/null; then
@@ -111,7 +113,7 @@ poll_commands() {
         jid=$(echo "$c" | jq -r '.jobId // empty')
         case "$kind" in
             0) if [ -n "$jid" ]; then /usr/local/bin/run-job.sh "$jid" backup || true; else run_all_jobs; fi ;;
-            1) log "Drill command received — not available until Phase 3" ;;
+            1) [ -n "$jid" ] && /usr/local/bin/run-job.sh "$jid" drill || true ;;
             2) sync_jobs ;;
         esac
         api -X POST "${HUB_URL}/api/agents/commands/${cid}/ack" >/dev/null 2>&1 || true
