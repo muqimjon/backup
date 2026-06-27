@@ -61,6 +61,35 @@ Project  ─contains─▶  Sources        (the things to back up: a database, a
 
 ---
 
+## ✅ Your first backup (5 minutes)
+
+After `docker compose up`, open **http://localhost:8080** (login `admin` / `admin`) and follow the
+chain above, top to bottom:
+
+1. **Add a destination** — *Settings → Destinations*. Pick a cloud and enter its credentials:
+   the no-OAuth options (Backblaze B2, S3-compatible, SFTP, WebDAV) just need a key/secret;
+   Google Drive · OneDrive · Dropbox · Yandex are a one-click **Connect**. Where to get each
+   value is in [`docs/guides/`](docs/guides/README.md).
+2. **Create a project** — *Projects → + Add project* (e.g. `myapp`).
+3. **Add its sources** — inside the project, *+ Source*: a PostgreSQL/MySQL database or an
+   S3/MinIO bucket (host, port, user, password, database/bucket). **Shortcut:** if an agent runs
+   on the same server with the Docker socket mounted, it **auto-discovers** the databases there —
+   they appear pre-filled as *review* sources; just check the details and **Confirm**.
+4. **Create a job** — *Jobs → + Add job*: choose the project → its sources (default: all) → the
+   destination → a schedule (e.g. *Every day at 02:00*, or type cron). Save.
+5. **Run & verify** — on the job click **Run now** and watch it in *History*. Then turn on a
+   **Restore-drill** (job schedule, or the per-version *Drill* button) so Zaxira restores the
+   backup into a throwaway database and marks the version **Verified** — proof it really restores.
+
+**To restore later:** open the job's **Versions**, pick a point in time, and click **Restore** —
+every source in the project rolls back together to that exact moment.
+
+> Running the agent on another server? See [The Agent](#-the-agent-zaxira) below. Want no hub at
+> all (pure `.env` cron)? See [Standalone](docs/guides/standalone.md) and
+> [`docker-compose.example.yml`](docker-compose.example.yml) for a full-configuration example.
+
+---
+
 ## 🖥️ The Hub
 
 The Hub is the control panel. It's a .NET 10 web app with an Angular UI, talks to the agents,

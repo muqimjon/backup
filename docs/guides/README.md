@@ -3,6 +3,13 @@
 Step-by-step guides for getting the credentials each integration needs.
 Everything is configured in the **web UI** — these pages just show *where to get* the values.
 
+New here? Start with the **[5-minute walkthrough in the README](../../README.md#-your-first-backup-5-minutes)**
+(destination → project → sources → job → run → restore).
+
+> **Tip — auto-discovery:** run the agent with the host Docker socket mounted read-only
+> (`-v /var/run/docker.sock:/var/run/docker.sock:ro`) and it finds the databases running next to
+> it and lists them in the UI as *review* sources — confirm them instead of typing each by hand.
+
 ## No hub? Run standalone
 - [Run backups without the hub (.env mode)](standalone.md) — the agent (or the lean
   `muqimjon/backup:*` images) backs up from `.env` on its own cron, no web hub required.
