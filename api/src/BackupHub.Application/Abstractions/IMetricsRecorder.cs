@@ -20,7 +20,12 @@ public sealed record RunBroadcast(
     long Bytes,
     string? Message);
 
+// Ad-hoc connectivity test result for one source/remote, pushed to the UI as a
+// toast. Not persisted — "source" | "remote" + the element id + ok/message.
+public sealed record TestResultBroadcast(string Target, Guid TargetId, bool Ok, string Message);
+
 public interface IRunNotifier
 {
     Task Publish(RunBroadcast run, CancellationToken ct = default);
+    Task PublishTest(TestResultBroadcast result, CancellationToken ct = default);
 }

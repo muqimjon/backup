@@ -26,6 +26,8 @@ public sealed class YandexOAuthService(HttpClient http, ISettingsService setting
             ["client_id"] = clientId,
             ["redirect_uri"] = redirectUri,
             ["response_type"] = "code",
+            // Force the confirm screen so a different Yandex account can be linked.
+            ["force_confirm"] = "yes",
             ["state"] = state,
         };
         var qs = string.Join('&', query.Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value ?? string.Empty)}"));
@@ -52,9 +54,9 @@ public sealed class YandexOAuthService(HttpClient http, ISettingsService setting
         var accessToken = root.GetProperty("access_token").GetString();
         var refreshToken = root.TryGetProperty("refresh_token", out var rt) ? rt.GetString() : null;
         var expiresIn = root.TryGetProperty("expires_in", out var ei) ? ei.GetInt32() : 31536000;
-        var expiry = DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToString("yyyy-MM-ddTHH:mm:ss.fffffffzzz");
+        var expiry = DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToString("yyyy-MM-ddTHH:mm:ss.fffffff'Z'", System.Globalization.CultureInfo.InvariantCulture);
 
-        return JsonSerializer.Serialize(new
+        return OauthJson.Serialize(new
         {
             access_token = accessToken,
             token_type = "bearer",

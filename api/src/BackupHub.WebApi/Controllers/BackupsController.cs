@@ -6,9 +6,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BackupHub.WebApi.Controllers;
 
-public sealed record RestoreRequest(string FileName, bool SnapshotFirst);
+public sealed record RestoreRequest(string? FileName, string? Version, bool SnapshotFirst);
 public sealed record DeliverRequest(string FileName);
+public sealed record FileRequest(string FileName);
 public sealed record InventoryRequest(Guid AgentId, Guid JobId, IReadOnlyList<InventoryItem> Items);
+public sealed record DrillResultRequest(Guid AgentId, Guid JobId, string FileName, bool Ok, int Tables, long Rows, string? Message);
 
 public sealed class BackupsController(ISender mediator) : ApiController(mediator)
 {
@@ -22,12 +24,28 @@ public sealed class BackupsController(ISender mediator) : ApiController(mediator
     [Authorize]
     [HttpPost("/api/jobs/{jobId:guid}/restore")]
     public async Task<ActionResult<Guid>> Restore(Guid jobId, RestoreRequest body, CancellationToken ct)
-        => Ok(await Mediator.Send(new RestoreVersionCommand(jobId, body.FileName, body.SnapshotFirst), ct));
+        => Ok(await Mediator.Send(new RestoreVersionCommand(jobId, body.FileName, body.Version, body.SnapshotFirst), ct));
+
+    [Authorize]
+    [HttpPost("/api/jobs/{jobId:guid}/drill")]
+    public async Task<ActionResult<Guid>> Drill(Guid jobId, FileRequest body, CancellationToken ct)
+        => Ok(await Mediator.Send(new DrillVersionCommand(jobId, body.FileName), ct));
+
+    [Authorize]
+    [HttpDelete("/api/jobs/{jobId:guid}/artifact")]
+    public async Task<ActionResult<Guid>> DeleteArtifact(Guid jobId, [FromQuery] string file, CancellationToken ct)
+        => Ok(await Mediator.Send(new DeleteArtifactCommand(jobId, file), ct));
 
     [AgentAuth]
     [HttpPost("/api/agents/inventory")]
     public async Task<ActionResult<int>> Inventory(InventoryRequest body, CancellationToken ct)
         => Ok(await Mediator.Send(new RecordInventoryCommand(body.AgentId, body.JobId, body.Items), ct));
+
+    [AgentAuth]
+    [HttpPost("/api/agents/drill-result")]
+    public async Task<ActionResult<bool>> DrillResult(DrillResultRequest body, CancellationToken ct)
+        => Ok(await Mediator.Send(new RecordDrillResultCommand(
+            body.AgentId, body.JobId, body.FileName, body.Ok, body.Tables, body.Rows, body.Message), ct));
 
     // ── Download: ask the agent to deliver a file, then stream it to the browser ──
 

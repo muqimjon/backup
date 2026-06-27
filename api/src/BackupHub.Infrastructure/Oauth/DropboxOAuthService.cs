@@ -27,6 +27,8 @@ public sealed class DropboxOAuthService(HttpClient http, ISettingsService settin
             ["redirect_uri"] = redirectUri,
             ["response_type"] = "code",
             ["token_access_type"] = "offline",
+            // Re-show the approval screen so a different Dropbox account can be linked.
+            ["force_reapprove"] = "true",
             ["state"] = state,
         };
         var qs = string.Join('&', query.Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value ?? string.Empty)}"));
@@ -53,9 +55,9 @@ public sealed class DropboxOAuthService(HttpClient http, ISettingsService settin
         var accessToken = root.GetProperty("access_token").GetString();
         var refreshToken = root.TryGetProperty("refresh_token", out var rt) ? rt.GetString() : null;
         var expiresIn = root.TryGetProperty("expires_in", out var ei) ? ei.GetInt32() : 14400;
-        var expiry = DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToString("yyyy-MM-ddTHH:mm:ss.fffffffzzz");
+        var expiry = DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToString("yyyy-MM-ddTHH:mm:ss.fffffff'Z'", System.Globalization.CultureInfo.InvariantCulture);
 
-        return JsonSerializer.Serialize(new
+        return OauthJson.Serialize(new
         {
             access_token = accessToken,
             token_type = "bearer",

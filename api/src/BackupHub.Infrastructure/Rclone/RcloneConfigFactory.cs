@@ -13,8 +13,7 @@ public sealed class RcloneConfigFactory(ISecretProtector protector) : IRcloneCon
 
         return remote.Type switch
         {
-            RemoteType.GoogleDrive =>
-                $"[remote]\ntype = drive\nscope = drive\ntoken = {data}\n",
+            RemoteType.GoogleDrive => BuildGoogleDrive(data),
             RemoteType.S3 => BuildS3(data),
             RemoteType.B2 => BuildB2(data),
             RemoteType.Sftp => BuildSftp(data),
@@ -25,6 +24,36 @@ public sealed class RcloneConfigFactory(ISecretProtector protector) : IRcloneCon
             RemoteType.Custom => BuildCustom(data),
             _ => throw new NotSupportedException($"Remote type {remote.Type} not supported"),
         };
+    }
+
+    // Google Drive config is stored two ways:
+    //  • a wrapper { token, clientId?, clientSecret? } — the in-app web OAuth flow,
+    //    where the token was minted by the user's own OAuth client. rclone MUST get
+    //    that client_id/secret too, or it can't refresh the token after ~1 hour.
+    //  • a bare rclone token JSON — from `rclone authorize "drive"`, which uses
+    //    rclone's built-in client, so no client_id belongs in the config.
+    private static string BuildGoogleDrive(string data)
+    {
+        var token = data;
+        string? clientId = null, clientSecret = null;
+        try
+        {
+            using var doc = JsonDocument.Parse(data);
+            var root = doc.RootElement;
+            if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("token", out var t))
+            {
+                token = t.GetString() ?? data;
+                clientId = root.TryGetProperty("clientId", out var ci) ? ci.GetString() : null;
+                clientSecret = root.TryGetProperty("clientSecret", out var cs) ? cs.GetString() : null;
+            }
+        }
+        catch (JsonException) { /* bare token — use it verbatim */ }
+
+        var conf = "[remote]\ntype = drive\nscope = drive\n";
+        if (!string.IsNullOrEmpty(clientId)) conf += $"client_id = {clientId}\n";
+        if (!string.IsNullOrEmpty(clientSecret)) conf += $"client_secret = {clientSecret}\n";
+        conf += $"token = {token}\n";
+        return conf;
     }
 
     private static string BuildB2(string json)
@@ -45,9 +74,14 @@ public sealed class RcloneConfigFactory(ISecretProtector protector) : IRcloneCon
         var user = root.GetProperty("Username").GetString();
         var password = root.TryGetProperty("Password", out var pw) ? pw.GetString() : null;
         var keyFile = root.TryGetProperty("KeyFile", out var kf) ? kf.GetString() : null;
+        var keyPem = root.TryGetProperty("KeyPem", out var kp) ? kp.GetString() : null;
 
         var conf = $"[remote]\ntype = sftp\nhost = {host}\nuser = {user}\nport = {port}\n";
-        if (!string.IsNullOrEmpty(keyFile))
+        if (!string.IsNullOrEmpty(keyPem))
+            // rclone un-escapes literal "\n" back to newlines in key_pem, so the
+            // whole PEM fits on one config line.
+            conf += $"key_pem = {keyPem.Replace("\r\n", "\n").Replace("\n", "\\n")}\n";
+        else if (!string.IsNullOrEmpty(keyFile))
             conf += $"key_file = {keyFile}\n";
         else if (!string.IsNullOrEmpty(password))
             conf += $"pass = {RcloneObscure.Obscure(password)}\n";

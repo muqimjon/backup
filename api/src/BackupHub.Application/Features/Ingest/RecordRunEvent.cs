@@ -1,4 +1,5 @@
 using BackupHub.Application.Abstractions;
+using BackupHub.Application.Common;
 using BackupHub.Domain.Entities;
 using BackupHub.Domain.Enums;
 using Mediator;
@@ -25,6 +26,14 @@ internal sealed class RecordRunEventHandler(
 {
     public async ValueTask<Guid> Handle(RecordRunEventCommand command, CancellationToken ct)
     {
+        var job = await db.Jobs
+            .Include(j => j.JobSources).ThenInclude(js => js.Source)
+            .FirstOrDefaultAsync(j => j.Id == command.JobId, ct);
+
+        // An authenticated agent may only report runs for jobs assigned to it.
+        if (job is { AgentId: not null } && job.AgentId != command.AgentId)
+            throw new UnauthorizedAppException("Job is not assigned to this agent.");
+
         var run = new BackupRun
         {
             AgentId = command.AgentId,
@@ -42,14 +51,13 @@ internal sealed class RecordRunEventHandler(
         if (agent is not null)
             agent.LastSeenAt = DateTimeOffset.UtcNow;
 
-        var job = await db.Jobs
-            .Include(j => j.Source)
-            .FirstOrDefaultAsync(j => j.Id == command.JobId, ct);
-
         await db.SaveChangesAsync(ct);
 
         var project = agent?.Project ?? "backup";
-        var driver = job is null ? "unknown" : DriverName(job.Source.Engine);
+        // Combined run → one label joining each source's driver (e.g. "postgres-minio").
+        var driver = job is null || job.JobSources.Count == 0
+            ? "unknown"
+            : string.Join('-', job.JobSources.OrderBy(js => js.Position).Select(js => DriverName(js.Source.Engine)));
         var duration = command.FinishedAt is { } end ? (end - command.StartedAt).TotalSeconds : 0;
 
         metrics.RecordRun(project, driver, command.Type, command.Status, command.Bytes, duration);

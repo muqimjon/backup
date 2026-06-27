@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, effect, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { Api } from '../../core/api';
 import { Lang } from '../../core/lang';
@@ -89,7 +89,7 @@ import { formatBytes, runTypeLabel, statusClass, statusLabel } from '../../core/
     h3 { margin-bottom: 14px; }
   `,
 })
-export class Dashboard implements OnInit, OnDestroy {
+export class Dashboard implements OnInit {
   private api = inject(Api);
   protected live = inject(Live);
   lang = inject(Lang);
@@ -113,10 +113,6 @@ export class Dashboard implements OnInit, OnDestroy {
   ngOnInit() {
     this.live.start();
     this.refresh();
-  }
-
-  ngOnDestroy() {
-    this.live.stop();
   }
 
   private refresh() {

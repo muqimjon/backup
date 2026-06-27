@@ -27,7 +27,10 @@ public sealed class GoogleOAuthService(HttpClient http, ISettingsService setting
             ["response_type"] = "code",
             ["scope"] = Scope,
             ["access_type"] = "offline",
-            ["prompt"] = "consent",
+            // select_account → always show the account chooser so one hub can
+            // link many Google accounts (one per client). consent → re-issue a
+            // refresh token each time.
+            ["prompt"] = "select_account consent",
             ["state"] = state,
         };
         var qs = string.Join('&', query.Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value ?? string.Empty)}"));
@@ -54,9 +57,9 @@ public sealed class GoogleOAuthService(HttpClient http, ISettingsService setting
         var accessToken = root.GetProperty("access_token").GetString();
         var refreshToken = root.TryGetProperty("refresh_token", out var rt) ? rt.GetString() : null;
         var expiresIn = root.TryGetProperty("expires_in", out var ei) ? ei.GetInt32() : 3600;
-        var expiry = DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToString("yyyy-MM-ddTHH:mm:ss.fffffffzzz");
+        var expiry = DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToString("yyyy-MM-ddTHH:mm:ss.fffffff'Z'", System.Globalization.CultureInfo.InvariantCulture);
 
-        return JsonSerializer.Serialize(new
+        return OauthJson.Serialize(new
         {
             access_token = accessToken,
             token_type = "Bearer",
@@ -64,6 +67,9 @@ public sealed class GoogleOAuthService(HttpClient http, ISettingsService setting
             expiry,
         });
     }
+
+    public async Task<(string? ClientId, string? ClientSecret)> GetCredentialsAsync(CancellationToken ct = default)
+        => await ResolveAsync(ct);
 
     private async Task<(string? ClientId, string? ClientSecret)> ResolveAsync(CancellationToken ct)
     {

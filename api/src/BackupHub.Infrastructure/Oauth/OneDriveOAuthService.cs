@@ -30,6 +30,8 @@ public sealed class OneDriveOAuthService(HttpClient http, ISettingsService setti
             ["response_type"] = "code",
             ["response_mode"] = "query",
             ["scope"] = Scope,
+            // Always show the account picker so one hub can link many OneDrive accounts.
+            ["prompt"] = "select_account",
             ["state"] = state,
         };
         var qs = string.Join('&', query.Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value ?? string.Empty)}"));
@@ -57,7 +59,7 @@ public sealed class OneDriveOAuthService(HttpClient http, ISettingsService setti
         var accessToken = root.GetProperty("access_token").GetString();
         var refreshToken = root.GetProperty("refresh_token").GetString();
         var expiresIn = root.GetProperty("expires_in").GetInt32();
-        var expiry = DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToString("yyyy-MM-ddTHH:mm:ss.fffffffzzz");
+        var expiry = DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToString("yyyy-MM-ddTHH:mm:ss.fffffff'Z'", System.Globalization.CultureInfo.InvariantCulture);
 
         var tokenJson = JsonSerializer.Serialize(new
         {
@@ -69,7 +71,7 @@ public sealed class OneDriveOAuthService(HttpClient http, ISettingsService setti
 
         var (driveId, driveType) = await GetDriveAsync(accessToken!, ct);
 
-        return JsonSerializer.Serialize(new { token = tokenJson, driveId, driveType });
+        return OauthJson.Serialize(new { token = tokenJson, driveId, driveType });
     }
 
     private async Task<(string DriveId, string DriveType)> GetDriveAsync(string accessToken, CancellationToken ct)

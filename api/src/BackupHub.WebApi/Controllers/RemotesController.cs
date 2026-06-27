@@ -48,6 +48,48 @@ public sealed class RemotesController(
     public async Task<ActionResult<Guid>> CreateCustom(CreateCustomRemoteCommand command, CancellationToken ct)
         => Ok(await Mediator.Send(command, ct));
 
+    // "Easy" cloud connect: store a token from `rclone authorize "<backend>"`.
+    // No Google Cloud / Azure app, no redirect URI — rclone's built-in client.
+    [Authorize]
+    [HttpPost("rclone-token")]
+    public async Task<ActionResult<Guid>> StoreRcloneToken(StoreRcloneTokenRemoteCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command, ct));
+
+    [Authorize]
+    [HttpGet("{id:guid}/detail")]
+    public async Task<ActionResult<RemoteDetailDto>> Detail(Guid id, CancellationToken ct)
+        => Ok(await Mediator.Send(new GetRemoteDetailQuery(id), ct));
+
+    [Authorize]
+    [HttpPut("{id:guid}/meta")]
+    public async Task<ActionResult<bool>> UpdateMeta(Guid id, UpdateRemoteMetaCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command with { Id = id }, ct));
+
+    [Authorize]
+    [HttpPut("s3/{id:guid}")]
+    public async Task<ActionResult<bool>> UpdateS3(Guid id, UpdateS3RemoteCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command with { Id = id }, ct));
+
+    [Authorize]
+    [HttpPut("b2/{id:guid}")]
+    public async Task<ActionResult<bool>> UpdateB2(Guid id, UpdateB2RemoteCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command with { Id = id }, ct));
+
+    [Authorize]
+    [HttpPut("sftp/{id:guid}")]
+    public async Task<ActionResult<bool>> UpdateSftp(Guid id, UpdateSftpRemoteCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command with { Id = id }, ct));
+
+    [Authorize]
+    [HttpPut("webdav/{id:guid}")]
+    public async Task<ActionResult<bool>> UpdateWebDav(Guid id, UpdateWebDavRemoteCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command with { Id = id }, ct));
+
+    [Authorize]
+    [HttpPut("custom/{id:guid}")]
+    public async Task<ActionResult<bool>> UpdateCustom(Guid id, UpdateCustomRemoteCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command with { Id = id }, ct));
+
     [Authorize]
     [HttpGet("google/connect")]
     public async Task<IActionResult> ConnectGoogle([FromQuery] string name, [FromQuery] string path, CancellationToken ct)
@@ -66,8 +108,9 @@ public sealed class RemotesController(
         var decoded = JsonSerializer.Deserialize<ConnectState>(
             Encoding.UTF8.GetString(Base64UrlDecode(state)))!;
         var tokenJson = await google.ExchangeCodeAsync(code, CallbackUri(), ct);
-        await Mediator.Send(new StoreGoogleRemoteCommand(decoded.Name, decoded.Path, tokenJson), ct);
-        return Redirect("/destinations?connected=1");
+        var (clientId, clientSecret) = await google.GetCredentialsAsync(ct);
+        await Mediator.Send(new StoreGoogleRemoteCommand(decoded.Name, decoded.Path, tokenJson, clientId, clientSecret), ct);
+        return Redirect("/settings/destinations?connected=1");
     }
 
     [Authorize]
@@ -89,7 +132,7 @@ public sealed class RemotesController(
             Encoding.UTF8.GetString(Base64UrlDecode(state)))!;
         var configJson = await onedrive.ExchangeCodeAsync(code, OneDriveCallbackUri(), ct);
         await Mediator.Send(new StoreOneDriveRemoteCommand(decoded.Name, decoded.Path, configJson), ct);
-        return Redirect("/destinations?connected=1");
+        return Redirect("/settings/destinations?connected=1");
     }
 
     private string OneDriveCallbackUri() => $"{Request.Scheme}://{Request.Host}/api/remotes/onedrive/callback";
@@ -111,7 +154,7 @@ public sealed class RemotesController(
         var decoded = JsonSerializer.Deserialize<ConnectState>(Encoding.UTF8.GetString(Base64UrlDecode(state)))!;
         var tokenJson = await dropbox.ExchangeCodeAsync(code, DropboxCallbackUri(), ct);
         await Mediator.Send(new StoreDropboxRemoteCommand(decoded.Name, decoded.Path, tokenJson), ct);
-        return Redirect("/destinations?connected=1");
+        return Redirect("/settings/destinations?connected=1");
     }
 
     private string DropboxCallbackUri() => $"{Request.Scheme}://{Request.Host}/api/remotes/dropbox/callback";
@@ -133,7 +176,7 @@ public sealed class RemotesController(
         var decoded = JsonSerializer.Deserialize<ConnectState>(Encoding.UTF8.GetString(Base64UrlDecode(state)))!;
         var tokenJson = await yandex.ExchangeCodeAsync(code, YandexCallbackUri(), ct);
         await Mediator.Send(new StoreYandexRemoteCommand(decoded.Name, decoded.Path, tokenJson), ct);
-        return Redirect("/destinations?connected=1");
+        return Redirect("/settings/destinations?connected=1");
     }
 
     private string YandexCallbackUri() => $"{Request.Scheme}://{Request.Host}/api/remotes/yandex/callback";
