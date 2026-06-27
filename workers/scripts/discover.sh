@@ -38,11 +38,11 @@ main() {
     count=$(echo "$list" | jq 'length' 2>/dev/null || echo 0)
     for ((i = 0; i < count; i++)); do
         image=$(echo "$list" | jq -r ".[$i].Image")
-        engine=""; port=0
+        engine=""; cport=0
         case "$image" in
-            *postgres*|*postgis*)   engine=0; port=5432 ;;
-            *mariadb*|*mysql*)      engine=1; port=3306 ;;
-            *minio/minio*|*minio*)  engine=3; port=9000 ;;
+            *postgres*|*postgis*)   engine=0; cport=5432 ;;
+            *mariadb*|*mysql*)      engine=1; cport=3306 ;;
+            *minio/minio*|*minio*)  engine=3; cport=9000 ;;
             *) continue ;;
         esac
 
@@ -51,10 +51,19 @@ main() {
         name=$(echo "$insp" | jq -r '.Name // ""' | sed 's#^/##')
         cenv=$(echo "$insp" | jq -c '.Config.Env // []')
 
-        # A published host port means another machine/agent could reach it too
-        # (Public); otherwise only a co-located agent can (Private).
-        published=$(echo "$insp" | jq '[(.NetworkSettings.Ports // {}) | to_entries[] | (.value // []) | length] | add // 0')
-        vis=0; [ "${published:-0}" -gt 0 ] 2>/dev/null && vis=1
+        # Pick a host the agent can actually reach. A container name only resolves
+        # for agents on the same Docker network; most agents are not. If the DB
+        # publishes its port to the host, reach it through the host gateway
+        # (host.docker.internal — the agent runs with --add-host …:host-gateway),
+        # exactly like a hand-added source. Mark that Public (other hosts may reach
+        # it too); a name-only, network-private container is Private.
+        hostport=$(echo "$insp" | jq -r --arg p "${cport}/tcp" \
+            '(.NetworkSettings.Ports[$p] // []) | map(select(.HostPort != null)) | .[0].HostPort // empty')
+        if [ -n "$hostport" ]; then
+            host="host.docker.internal"; port="$hostport"; vis=1
+        else
+            host="$name"; port="$cport"; vis=0
+        fi
 
         case "$engine" in
             0) user=$(env_val "$cenv" POSTGRES_USER);     [ -z "$user" ] && user="postgres"
@@ -70,9 +79,9 @@ main() {
         esac
 
         items=$(echo "$items" | jq -c \
-            --argjson e "$engine" --arg h "$name" --argjson p "$port" \
+            --argjson e "$engine" --arg h "$host" --arg p "$port" \
             --arg u "$user" --arg s "$secret" --arg t "$target" --argjson v "$vis" --arg n "$name" \
-            '. += [{engine:$e,host:$h,port:$p,username:$u,secret:$s,target:$t,visibility:$v,name:$n}]')
+            '. += [{engine:$e,host:$h,port:($p|tonumber),username:$u,secret:$s,target:$t,visibility:$v,name:$n}]')
     done
 
     local found; found=$(echo "$items" | jq 'length')
