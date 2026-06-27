@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { DatePipe } from '@angular/common';
 import { Api } from '../../core/api';
 import { Lang } from '../../core/lang';
-import { AgentDto } from '../../core/models';
+import { AgentDto, CommandKind } from '../../core/models';
 
 @Component({
   selector: 'app-agents',
@@ -21,15 +21,16 @@ import { AgentDto } from '../../core/models';
       <h3>{{ lang.t('a.what') }}</h3>
       <p>{{ lang.t('a.explain') }}</p>
       <p class="muted"><b>{{ lang.t('a.addTitle') }}</b></p>
-      <pre>{{ cmd() }}</pre>
-      <div class="tok">
-        <div class="muted">🔑 {{ lang.t('a.tokenNote') }}</div>
-        <div class="trow">
-          <code>{{ revealed() ? token() : masked() }}</code>
+      <div class="cmdbox">
+        <div class="cmdhead">
+          <span class="muted">🔑 {{ lang.t('a.tokenNote') }}</span>
+          <span class="spacer"></span>
           <button class="ghost sm" (click)="revealed.set(!revealed())">{{ revealed() ? '🙈' : '👁' }}</button>
-          <button class="ghost sm" (click)="copyToken()">📋 {{ copied() ? '✓' : 'Copy' }}</button>
+          <button class="ghost sm" (click)="copyCmd()">📋 {{ copied() ? '✓' : 'Copy' }}</button>
         </div>
+        <pre>{{ cmd(revealed() ? token() : masked()) }}</pre>
       </div>
+      <p class="muted">{{ lang.t('a.discoverNote') }}</p>
     </div>
 
     <div class="card">
@@ -48,6 +49,8 @@ import { AgentDto } from '../../core/models';
                 <td class="muted">{{ a.version }}</td>
                 <td class="muted">{{ a.lastSeenAt ? (a.lastSeenAt | date: 'short') : 'never' }}</td>
                 <td class="right acts">
+                  <button class="ghost sm" (click)="discover(a)">{{ lang.t('a.discover') }}</button>
+                  <button class="ghost sm" (click)="reset(a)">{{ lang.t('a.reset') }}</button>
                   <button class="ghost sm" (click)="toggle(a)">{{ a.enabled ? lang.t('a.disable') : lang.t('a.enable') }}</button>
                   <button class="ghost sm danger" (click)="remove(a)">{{ lang.t('btn.remove') }}</button>
                 </td>
@@ -63,12 +66,14 @@ import { AgentDto } from '../../core/models';
     h3 { margin-bottom: 8px; }
     .info { margin-bottom: 16px; }
     .info p { margin: 0 0 8px; line-height: 1.55; }
-    .info pre { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
-                padding: 12px 14px; font-size: 12px; overflow-x: auto; margin: 4px 0 12px; }
-    .tok { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
-    .trow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-    .trow code { font-size: 13px; flex: 1; word-break: break-all; }
-    .tok .sm { padding: 4px 9px; font-size: 13px; }
+    .cmdbox { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+              margin: 4px 0 12px; overflow: hidden; }
+    .cmdhead { display: flex; align-items: center; gap: 6px; padding: 8px 10px 8px 14px;
+               border-bottom: 1px solid var(--border); }
+    .cmdhead .spacer { flex: 1; }
+    .cmdhead .sm { padding: 4px 9px; font-size: 13px; }
+    .info .cmdbox pre { background: none; border: 0; border-radius: 0;
+                        padding: 12px 14px; font-size: 12px; overflow-x: auto; margin: 0; }
     .right { text-align: right; }
     .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-left: 4px; }
     .dot.live { background: var(--ok); }
@@ -95,12 +100,13 @@ export class Agents {
 
   load() { this.api.agents().subscribe(a => this.items.set(a)); }
 
-  cmd() {
+  cmd(tok: string) {
     return `docker run -d --restart=always \\
   -e HUB_URL=${this.hubUrl} \\
-  -e HUB_TOKEN=<paste-token-below> \\
+  -e HUB_TOKEN=${tok || '<your-hub-token>'} \\
   -e AGENT_NAME=server-2 \\
   --add-host host.docker.internal:host-gateway \\
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \\
   -v bh_agent:/backup \\
   muqimjon/zaxira`;
   }
@@ -108,11 +114,11 @@ export class Agents {
   masked() {
     const t = this.token();
     if (t.length <= 14) return t ? '••••••' : '';
-    return t.slice(0, 6) + ' •••••••••• ' + t.slice(-4);
+    return t.slice(0, 6) + '••••••••••' + t.slice(-4);
   }
 
-  copyToken() {
-    navigator.clipboard?.writeText(this.token()).then(() => {
+  copyCmd() {
+    navigator.clipboard?.writeText(this.cmd(this.token())).then(() => {
       this.copied.set(true);
       setTimeout(() => this.copied.set(false), 2000);
     });
@@ -121,6 +127,21 @@ export class Agents {
   toggle(a: AgentDto) {
     this.api.setAgentEnabled(a.id, !a.enabled).subscribe({
       next: () => { this.flash(a.enabled ? `"${a.name}" paused.` : `"${a.name}" enabled.`); this.load(); },
+      error: () => this.flash('Failed.'),
+    });
+  }
+
+  discover(a: AgentDto) {
+    this.api.enqueue(a.id, CommandKind.DiscoverSources).subscribe({
+      next: () => this.flash(this.lang.t('a.discoverSent')),
+      error: () => this.flash('Failed.'),
+    });
+  }
+
+  reset(a: AgentDto) {
+    if (!confirm(this.lang.t('a.resetConfirm').replace('{name}', a.name))) return;
+    this.api.enqueue(a.id, CommandKind.ResetAgent).subscribe({
+      next: () => this.flash(this.lang.t('a.resetSent')),
       error: () => this.flash('Failed.'),
     });
   }

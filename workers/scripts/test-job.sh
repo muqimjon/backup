@@ -22,17 +22,32 @@ export RUN_TYPE=5
 ok=1
 msg=""
 
-case "${BACKUP_DRIVER%%-*}" in
-    postgres)
-        if PGPASSWORD="${PG_PASSWORD:-}" pg_isready -h "${PG_HOST}" -p "${PG_PORT:-5432}" -U "${PG_USER}" >/dev/null 2>&1; then
-            msg="source OK"
-        else ok=0; msg="source unreachable"; fi ;;
-    mysql)
-        if mysqladmin --host="${MYSQL_HOST}" --port="${MYSQL_PORT:-3306}" --user="${MYSQL_USER}" --password="${MYSQL_PASSWORD:-}" ping >/dev/null 2>&1; then
-            msg="source OK"
-        else ok=0; msg="source unreachable"; fi ;;
-    *) msg="source check skipped" ;;
-esac
+# A job may bundle several sources (e.g. postgres-minio) — check EVERY driver,
+# not just the first, so a broken source in a combined project is caught.
+check_source() {  # driver
+    case "$1" in
+        postgres)
+            if PGPASSWORD="${PG_PASSWORD:-}" pg_isready -h "${PG_HOST}" -p "${PG_PORT:-5432}" -U "${PG_USER}" >/dev/null 2>&1; then
+                msg="${msg:+$msg; }postgres OK"
+            else ok=0; msg="${msg:+$msg; }postgres unreachable"; fi ;;
+        mysql)
+            if mysqladmin --host="${MYSQL_HOST}" --port="${MYSQL_PORT:-3306}" --user="${MYSQL_USER}" --password="${MYSQL_PASSWORD:-}" ping >/dev/null 2>&1; then
+                msg="${msg:+$msg; }mysql OK"
+            else ok=0; msg="${msg:+$msg; }mysql unreachable"; fi ;;
+        minio)
+            if mc alias set _test "${MINIO_ENDPOINT}" "${MINIO_ACCESS_KEY}" "${MINIO_SECRET_KEY}" --api "${MINIO_API:-S3v4}" >/dev/null 2>&1 \
+               && mc ls "_test/${MINIO_BUCKET}" >/dev/null 2>&1; then
+                msg="${msg:+$msg; }minio OK"
+            else ok=0; msg="${msg:+$msg; }minio unreachable"; fi
+            mc alias remove _test >/dev/null 2>&1 || true ;;
+        *) msg="${msg:+$msg; }${1} check skipped" ;;
+    esac
+}
+
+IFS='-' read -ra DRIVERS <<< "${BACKUP_DRIVER:-postgres}"
+for driver in "${DRIVERS[@]}"; do
+    check_source "$driver"
+done
 
 if [ -n "${RCLONE_CONFIG:-}" ] && [ -f "${RCLONE_CONFIG}" ]; then
     if rclone --config "${RCLONE_CONFIG}" lsd "${RCLONE_REMOTE:-remote}:" >/dev/null 2>&1; then

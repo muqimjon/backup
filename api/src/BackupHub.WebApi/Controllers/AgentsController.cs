@@ -1,4 +1,5 @@
 using BackupHub.Application.Features.Agents;
+using BackupHub.Application.Features.Sources;
 using BackupHub.Domain.Enums;
 using BackupHub.WebApi.Auth;
 using Mediator;
@@ -7,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BackupHub.WebApi.Controllers;
 
-public sealed record EnqueueRequest(CommandKind Kind, Guid? JobId);
+public sealed record EnqueueRequest(CommandKind Kind, Guid? JobId, string? Payload);
 
 public sealed class AgentsController(ISender mediator) : ApiController(mediator)
 {
@@ -32,14 +33,30 @@ public sealed class AgentsController(ISender mediator) : ApiController(mediator)
         => Ok(await Mediator.Send(new GetPendingCommandsQuery(id), ct));
 
     [AgentAuth]
+    [HttpGet("source/{id:guid}/conninfo")]
+    public async Task<ActionResult<SourceConnInfoDto>> SourceConnInfo(Guid id, CancellationToken ct)
+        => Ok(await Mediator.Send(new GetSourceConnInfoQuery(id), ct));
+
+    [AgentAuth]
     [HttpPost("commands/{commandId:guid}/ack")]
     public async Task<ActionResult<bool>> Ack(Guid commandId, CancellationToken ct)
         => Ok(await Mediator.Send(new AckCommandCommand(commandId), ct));
 
+    [AgentAuth]
+    [HttpPost("{id:guid}/discovered-sources")]
+    public async Task<ActionResult<int>> ReportDiscoveredSources(
+        Guid id, [FromBody] IReadOnlyList<DiscoveredSourceItem> items, CancellationToken ct)
+        => Ok(await Mediator.Send(new ReportDiscoveredSourcesCommand(id, items), ct));
+
+    [AgentAuth]
+    [HttpPost("{id:guid}/adopt-job")]
+    public async Task<ActionResult<Guid>> AdoptJob(Guid id, AdoptJobCommand command, CancellationToken ct)
+        => Ok(await Mediator.Send(command with { AgentId = id }, ct));
+
     [Authorize]
     [HttpPost("{id:guid}/enqueue")]
     public async Task<ActionResult<Guid>> Enqueue(Guid id, EnqueueRequest body, CancellationToken ct)
-        => Ok(await Mediator.Send(new EnqueueAgentCommandCommand(id, body.Kind, body.JobId), ct));
+        => Ok(await Mediator.Send(new EnqueueAgentCommandCommand(id, body.Kind, body.JobId, body.Payload), ct));
 
     [Authorize]
     [HttpDelete("{id:guid}")]

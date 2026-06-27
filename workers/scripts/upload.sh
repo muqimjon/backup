@@ -80,7 +80,8 @@ upload_pending() {
         log "WARNING: ${failed} file(s) failed — will retry on next run"
         notify error "Upload FAILED for ${failed} file(s) → ${RCLONE_REMOTE}:${RCLONE_PATH}. Last reason: ${last_error:-unknown}"
         heartbeat /fail
-        hub_report 1 2 0 "Upload failed for ${failed} file(s)" || true
+        local reason="${last_error:-unknown}"
+        hub_report 1 2 0 "Upload failed for ${failed} file(s): ${reason:0:300}" || true
     elif [ "$uploaded" -gt 0 ]; then
         notify success "Uploaded ${uploaded} backup(s) → ${RCLONE_REMOTE}:${RCLONE_PATH}"
         heartbeat

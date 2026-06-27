@@ -11,8 +11,10 @@ source /usr/local/bin/lib.sh
 
 run_backup() {
     local driver="$1"
-    local timestamp; timestamp=$(date +%Y%m%d_%H%M%S)
-    local name="${PROJECT_NAME}_${driver}_${timestamp}"
+    # RUN_TS is stamped ONCE for the whole run (see Main) so every source of one
+    # project shares the exact timestamp — postgres and minio archives stay paired
+    # as a single point-in-time version (cleanup/restore rely on this pairing).
+    local name="${PROJECT_NAME}_${driver}_${RUN_TS}"
     local outfile="${BACKUP_DIR}/${name}.zip"
     local driver_script="/usr/local/bin/drivers/${driver}.sh"
 
@@ -61,6 +63,14 @@ log "Backup started"
 
 mkdir -p "$BACKUP_DIR"
 
+# One timestamp for the whole run: all sources of this project are captured as a
+# single consistent version (e.g. forex_postgres_T.zip + forex_minio_T.zip share T).
+RUN_TS="$(date +%Y%m%d_%H%M%S)"
+
+# Order matters for cross-source consistency: postgres is dumped BEFORE minio is
+# mirrored, so the DB dump never references an object the mirror is missing
+# (worst case is an orphan object with no DB row — harmless). "postgres-minio"
+# already encodes this order.
 IFS='-' read -ra DRIVERS <<< "${BACKUP_DRIVER:-postgres}"
 for driver in "${DRIVERS[@]}"; do
     run_backup "$driver"

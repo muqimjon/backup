@@ -56,8 +56,29 @@ case "$driver" in
             --host="$MYSQL_HOST" --port="${MYSQL_PORT:-3306}" \
             --user="$MYSQL_USER" "$MYSQL_DATABASE"
         ;;
+    minio)
+        : "${MINIO_ENDPOINT:?MINIO_ENDPOINT is required}" "${MINIO_ACCESS_KEY:?}" \
+          "${MINIO_SECRET_KEY:?}" "${MINIO_BUCKET:?}"
+        # The archive holds a tar of the mirrored bucket. Unpack it, then mirror it
+        # back so the bucket exactly matches this version: --overwrite replaces
+        # changed objects, --remove deletes objects added since the backup. This is
+        # a true point-in-time rollback, kept consistent with the paired DB restore.
+        alias="${MINIO_ALIAS:-backup-restore}"
+        tmp=$(mktemp -d)
+        trap 'rm -rf "$tmp"; mc alias remove "$alias" >/dev/null 2>&1 || true' EXIT
+
+        "${extract[@]}" | tar -xf - -C "$tmp" \
+            || error_exit "Could not unpack minio archive: $(basename "$file")"
+
+        mc alias set "$alias" "$MINIO_ENDPOINT" "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY" \
+            --api "${MINIO_API:-S3v4}" >/dev/null 2>&1 \
+            || error_exit "MinIO ulanib bo'lmadi: ${MINIO_ENDPOINT}"
+        mc mb --ignore-existing "${alias}/${MINIO_BUCKET}" >/dev/null 2>&1 || true
+        mc mirror --overwrite --remove --quiet "$tmp/" "${alias}/${MINIO_BUCKET}" \
+            || error_exit "MinIO mirror restore failed (bucket: ${MINIO_BUCKET})"
+        ;;
     *)
-        error_exit "Automated restore not supported for '${driver}'. For minio/mssql, extract the zip and re-import manually (see README)."
+        error_exit "Automated restore not supported for '${driver}'. For mssql, extract the zip and re-import manually (see README)."
         ;;
 esac
 
