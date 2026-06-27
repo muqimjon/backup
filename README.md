@@ -1,432 +1,221 @@
-# 🗄️ Universal Backup Service
+# 🗄️ Zaxira — Universal Backup Platform
 
-Automatic, scheduled backup service packaged as Docker images.  
-Dumps your data, compresses it (optionally encrypted), and uploads it to any cloud storage via **rclone** — with local and remote retention management built in.
+Zaxira backs up your databases and storage **automatically, on a schedule**, and uploads the
+copies to any cloud — then proves they can actually be restored.
 
-> **🆕 Zaxira platform (web UI).** These worker images can now run standalone (env config, below)
-> **or** be driven from a web control plane. The hub gives you: one-button Google Drive OAuth,
-> a UI to define sources/destinations/schedules/retention, live run history, Prometheus/Grafana
-> metrics, and **automated restore-drills** that prove your backups are restorable. Deploy the whole
-> stack with one `docker compose up`.
->
-> ```bash
-> cd deploy && cp .env.example .env   # set JWT_KEY, HUB_TOKEN, admin password
-> docker compose up --build           # hub UI → http://localhost:8080
-> docker compose --profile metrics up # + Prometheus & Grafana (http://localhost:3000)
-> ```
->
-> Add an agent on any server → it registers itself → define a job in the UI → it starts backing up.
-> No SSH back to the box. See [`deploy/`](deploy/) and [`docs/google-oauth.md`](docs/google-oauth.md).
-> Repo layout: `workers/` (these images) · `api/` (.NET 10 hub) · `web/` (Angular UI) · `deploy/`.
+It has two parts:
+
+- **The Hub** — a web app where you set everything up and watch it run.
+- **The Agent (zaxira)** — a small worker that sits next to your data and does the actual backups.
+
+You install the Hub once, run an Agent next to each server you want to protect, and manage
+everything from the browser. No SSH-ing into machines, no editing config files by hand.
+
+```
+   Browser ──▶  HUB (web UI + brain)  ◀──▶  AGENT  ──▶  your DB / storage
+                      :8080                 (zaxira)         │
+                        │                       │            ▼
+                        └── tells the agent ────┘     dump → zip → upload ──▶  ☁️ cloud
+                            what & when to back up
+```
 
 ---
 
-## ✨ Features
+## 🚀 Quick start
 
-| Feature | Detail |
+```bash
+cd deploy
+cp .env.example .env        # set JWT_KEY, HUB_TOKEN and an admin password
+docker compose up --build   # Hub UI → http://localhost:8080  (login: admin / admin)
+```
+
+That single command starts the **Hub** and one local **Agent**. Open the UI, create a project,
+add your database, pick a destination — and you're backing up.
+
+Optional monitoring stack (Prometheus + Grafana on `:3000`):
+
+```bash
+docker compose --profile metrics up
+```
+
+---
+
+## 🧠 The mental model
+
+Everything in the Hub follows one simple chain:
+
+```
+Project  ─contains─▶  Sources        (the things to back up: a database, a bucket…)
+   │
+   └──used by──▶  Job  ─sends to─▶  Destination   on a  Schedule
+```
+
+- **Project** — a group of related data that belongs together (e.g. an app's PostgreSQL database
+  **and** its MinIO image bucket). Everything in a project is backed up together as **one
+  consistent, point-in-time version**, so a restore never gives you a database that points at
+  images that don't exist yet.
+- **Source** — one thing to back up: a PostgreSQL/MySQL database, or an S3/MinIO bucket.
+- **Destination** — where copies go: Google Drive, S3, Backblaze B2, SFTP, WebDAV… (70+ clouds).
+- **Job** — ties a project's sources to a destination and a schedule. One click restores the
+  whole project to any past version.
+
+---
+
+## 🖥️ The Hub
+
+The Hub is the control panel. It's a .NET 10 web app with an Angular UI, talks to the agents,
+stores its settings in a small SQLite file, and serves everything on **port 8080**.
+Default login is **admin / admin** (change it in `.env`).
+
+What you do in the Hub:
+
+| Page | What it's for |
 |---|---|
-| **Multiple sources** | PostgreSQL, MySQL/MariaDB, MSSQL, MinIO/S3 |
-| **Any cloud destination** | Google Drive, S3, Backblaze B2, SFTP, and 70+ via rclone |
-| **Separate schedules** | backup · upload · cleanup can run on different crons |
-| **Upload retry** | files stay local until upload succeeds; retried on next run |
-| **Local retention** | `MIN_LOCAL_BACKUPS` / `MAX_LOCAL_BACKUPS` |
-| **Remote retention** | `MAX_REMOTE_BACKUPS` — auto-deletes oldest from cloud |
-| **Encryption** | AES-256 zip password via `BACKUP_PASSWORD` |
-| **Integrity check** | every archive is size- and zip-tested before it counts as success |
-| **Alerts** | Telegram / webhook on failure + startup auth check + dead-man's-switch ping |
-| **Health probe** | Docker `HEALTHCHECK` flips unhealthy when backups go stale |
-| **One-command restore** | `restore.sh` for postgres & mysql |
-| **Missed-run recovery** | on container restart, catches up missed backups automatically |
-| **Lightweight** | Alpine-based (~80 MB), Ubuntu only for MSSQL |
+| **Dashboard** | At-a-glance health: last backup, successes/failures, restore-drill status. |
+| **Projects** | Create a project, then add the sources (databases, buckets) that belong to it. |
+| **Jobs** | Pick a project → choose its sources (default: all) → a destination → a schedule. |
+| **History** | Every backup, upload, cleanup, restore and drill, live as it happens. |
+| **Settings** | Three tabs: **Destinations**, **Agents**, **Notifications**. |
+
+### Highlights
+
+- **Friendly schedules (or cron).** When you create a job you don't have to know cron. Pick
+  *Every day at 02:00*, *Every Sunday at 04:00*, *Every hour*, etc. — the Hub shows the resulting
+  cron line so power users can verify or switch to **Custom (cron)** and type `0 2 * * *` directly.
+- **One-version restore.** Choose a single version (e.g. "1 week ago") and **all** of the
+  project's sources are restored together to that exact moment. Per-source restore is available
+  for advanced cases.
+- **Easy Google Drive.** Connecting Google Drive normally means wrestling with OAuth. The Hub
+  gives you a guided **one-time setup** (it shows the exact redirect URL with a copy button), then
+  every Drive destination is a single **Connect** click. Prefer zero cloud setup? Paste a token
+  from `rclone authorize "drive"` instead.
+- **Restore-drills.** The Hub can periodically restore a backup into a throwaway database to
+  **prove** it's restorable — so you find out about a broken backup *before* you need it.
+- **Notifications.** Email (your own SMTP), Telegram bot, or a webhook — on failure, on every
+  run, or never. Nothing is sent through us; secrets are encrypted at rest.
 
 ---
 
-## 📦 Image Tags
+## 🤖 The Agent (zaxira)
 
-| Tag | Base | Backup tools |
-|---|---|---|
-| `backup:postgres` | Alpine | pg_dump |
-| `backup:mysql` | Alpine | mysqldump (MySQL & MariaDB) |
-| `backup:mssql` | Ubuntu 22.04 | sqlcmd + bcp |
-| `backup:minio` | Alpine | mc (MinIO / S3-compatible) |
-| `backup:postgres-minio` | Alpine | pg_dump + mc |
+The Agent is the worker. It's a small Alpine container (~80 MB) that runs **next to your data**
+(same server / same Docker network) and carries the actual backup tools: `pg_dump`,
+`mysqldump`, the MinIO client `mc`, plus **rclone** for uploads.
 
-> All images include **rclone** and **supercronic**.
+How it works:
 
----
+1. You run the agent with just two things: the **Hub URL** and a **shared token** (`HUB_TOKEN`).
+2. On start it **registers itself** with the Hub and appears under **Settings → Agents**.
+3. It polls the Hub for instructions: *run a backup now*, *restore this version*, *test this
+   destination*, etc. — and reports the result back, which you see live in **History**.
 
-## 🚀 Quick Start
-
-### 1. Get your rclone config
-
-```bash
-# Configure rclone interactively (run locally, not in Docker)
-rclone config
-# The config file is at: ~/.config/rclone/rclone.conf
-```
-
-### 2a. Run with `docker run`
-
-```bash
-docker run -d \
-  -e PG_HOST=myhost \
-  -e PG_USER=myuser \
-  -e PG_PASSWORD=mypassword \
-  -e PG_DATABASE=mydb \
-  -e RCLONE_REMOTE=gdrive \
-  -e RCLONE_PATH=backups/myapp \
-  -v $(pwd)/rclone.conf:/etc/rclone/rclone.conf:ro \
-  -v $(pwd)/backup-data:/backup \
-  muqimjon/backup:postgres
-```
-
-That's it — the container runs an initial backup immediately and then follows `BACKUP_SCHEDULE` (default: daily at 02:00).
-
-### 2b. Run with `docker-compose` (minimal)
+You never connect back to the box. Configure it once in compose, manage it from the Hub.
 
 ```yaml
-services:
-  backup:
-    image: muqimjon/backup:postgres
-    restart: always
-    environment:
-      PG_HOST: postgres
-      PG_USER: myuser
-      PG_PASSWORD: mypassword
-      PG_DATABASE: mydb
-      RCLONE_REMOTE: gdrive
-      RCLONE_PATH: backups/myapp
-    volumes:
-      - ./data/backup:/backup
-      - ./rclone.conf:/etc/rclone/rclone.conf:ro
-    depends_on:
-      - postgres
+# the agent service in deploy/docker-compose.yml
+agent:
+  image: muqimjon/zaxira:latest
+  environment:
+    HUB_URL: http://hub:8080
+    HUB_TOKEN: ${HUB_TOKEN}      # the same secret the Hub knows
+    AGENT_NAME: local-agent
+  extra_hosts:
+    - "host.docker.internal:host-gateway"   # so it can reach a DB on the host
 ```
+
+### Two ways to set up an agent
+
+- **Unconfigured (managed from the Hub).** Give it only `HUB_URL` + `HUB_TOKEN`. It shows up in
+  the Hub and you create projects, sources and jobs from the browser.
+- **Pre-configured (adopt).** If the compose file already describes a job (database, schedule,
+  destination), the agent **pushes that setup to the Hub once** on first connect — the project,
+  its sources and destination appear automatically, ready to manage. "Write it once in compose,
+  run it from the Hub."
+
+### Auto-discovery & reset
+
+- **Auto-discovery (opt-in).** Mount the host Docker socket read-only and the agent finds the
+  databases and object stores running next to it, then lists them in the Hub as **pending sources**
+  for you to review and confirm — no hand-entering each one. It only *reads* container metadata.
+
+  ```yaml
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro   # enables auto-discovery
+  ```
+
+- **Reset.** Hub commands always win and persist (the agent keeps running them even if the Hub
+  goes offline). **Reset** on the Agents page is the escape hatch: the agent discards the
+  Hub-applied state and re-uploads its own startup config, then carries on Hub-managed.
+
+### Many servers, many agents
+
+Run an agent on every server you want to protect. Each registers independently, so several
+unrelated projects on different machines are backed up side by side — each its own consistent
+unit.
 
 ---
 
-## ⚙️ Full Configuration
+## 🔒 What every backup gives you
 
-```yaml
-services:
-  backup:
-    image: muqimjon/backup:postgres
-    restart: always
-    environment:
-      # ── Identity ──────────────────────────────────────────────────────────
-      PROJECT_NAME: myapp           # prefix in every backup filename
-      TZ: Asia/Tashkent             # timezone for schedules and log timestamps
-
-      # ── Database (PostgreSQL) ─────────────────────────────────────────────
-      PG_HOST: postgres             # hostname / IP
-      PG_PORT: 5432                 # default: 5432
-      PG_USER: myuser
-      PG_PASSWORD: mypassword
-      PG_DATABASE: mydb
-
-      # ── Schedules (standard cron syntax) ─────────────────────────────────
-      BACKUP_SCHEDULE:  "0 2 * * *"   # when to create the dump
-      UPLOAD_SCHEDULE:  "0 */6 * * *" # when to upload  (empty = after each backup)
-      CLEANUP_SCHEDULE: "0 7 * * *"   # when to cleanup (empty = after each upload)
-
-      # ── Local storage ─────────────────────────────────────────────────────
-      BACKUP_DIR: /backup           # where zip files are stored inside the container
-      MIN_LOCAL_BACKUPS: 2          # never delete below this count, even if uploaded
-      MAX_LOCAL_BACKUPS: 5          # hard cap — oldest deleted regardless of status
-
-      # ── Remote storage ────────────────────────────────────────────────────
-      RCLONE_REMOTE: gdrive         # rclone remote name (from rclone.conf)
-      RCLONE_PATH: backups/myapp    # folder path inside the remote
-      RCLONE_CONFIG: /etc/rclone/rclone.conf
-      MAX_REMOTE_BACKUPS: 30        # oldest remote files deleted after this count
-
-      # ── Compression & encryption ──────────────────────────────────────────
-      COMPRESSION_LEVEL: 6          # zip level: 1 (fast) … 9 (smallest)
-      BACKUP_PASSWORD: "str0ngP@ss" # optional — enables AES-256 zip encryption
-
-    volumes:
-      - ./data/backup:/backup
-      - ./rclone.conf:/etc/rclone/rclone.conf:ro
-```
+- **Consistent versions** — all sources in a project share one timestamp; a restore is a true
+  snapshot, never a mismatched mix.
+- **Compression & encryption** — zip level 1–9, optional AES-256 password.
+- **Integrity checks** — every archive is size- and zip-tested before it counts as a success.
+- **Retention** — keep N copies locally and M in the cloud; the oldest are pruned automatically,
+  per source (so a DB dump and its paired bucket snapshot are kept together).
+- **Catch-up** — if the machine was off when a backup was due, the agent runs it on next start.
 
 ---
 
-## 🗂️ Environment Variable Reference
+## ☁️ Destinations
 
-### Common (all images)
+Backups upload via **rclone**, so almost anything works. The simplest free options need no OAuth
+at all — just a key or password:
 
-| Variable | Default | Description |
-|---|---|---|
-| `PROJECT_NAME` | `backup` | Prefix in backup filenames |
-| `TZ` | `UTC` | Container timezone |
-| `BACKUP_DIR` | `/backup` | Local directory for zip files |
-| `BACKUP_SCHEDULE` | `0 2 * * *` | Cron schedule for creating dumps |
-| `UPLOAD_SCHEDULE` | *(empty)* | Cron for upload; empty = upload after each backup |
-| `CLEANUP_SCHEDULE` | *(empty)* | Cron for cleanup; empty = cleanup after each upload |
-| `COMPRESSION_LEVEL` | `6` | Zip compression level (1–9) |
-| `BACKUP_PASSWORD` | *(empty)* | If set, zips are AES-256 encrypted |
-| `MIN_LOCAL_BACKUPS` | `2` | Minimum files to keep locally |
-| `MAX_LOCAL_BACKUPS` | `5` | Maximum files to keep locally (hard cap) |
-| `RCLONE_REMOTE` | *(required)* | rclone remote name |
-| `RCLONE_PATH` | *(required)* | Path inside the remote |
-| `RCLONE_CONFIG` | `/etc/rclone/rclone.conf` | Path to rclone config file |
-| `RCLONE_CONFIG_CONTENT` | *(empty)* | Paste config content directly (alternative to file) |
-| `MAX_REMOTE_BACKUPS` | `30` | Maximum files to keep in cloud storage |
-| `MIN_BACKUP_BYTES` | `256` | A fresh archive smaller than this is treated as a failed backup |
-
-### Notifications & monitoring (all images, all optional)
-
-| Variable | Default | Description |
-|---|---|---|
-| `NOTIFY_ON` | `failure` | `failure` = alert only on errors · `always` = also on success · `never` = silent |
-| `NOTIFY_TELEGRAM_TOKEN` | *(empty)* | Telegram bot token (from [@BotFather](https://t.me/BotFather)) |
-| `NOTIFY_TELEGRAM_CHAT_ID` | *(empty)* | Chat/channel ID to send alerts to |
-| `NOTIFY_WEBHOOK_URL` | *(empty)* | Generic endpoint — receives `{level, project, message}` JSON on each alert |
-| `HEARTBEAT_URL` | *(empty)* | Dead-man's-switch ping URL (e.g. [healthchecks.io](https://healthchecks.io)); pinged on success, `<url>/fail` on failure |
-| `SMTP_HOST` | *(empty)* | SMTP server, e.g. `smtp.gmail.com`. Enables email alerts when set with `EMAIL_TO`/`EMAIL_FROM` |
-| `SMTP_PORT` | `587` | `465` = implicit TLS, anything else = STARTTLS |
-| `SMTP_USER` / `SMTP_PASS` | *(empty)* | SMTP login (Gmail: use an [App Password](https://myaccount.google.com/apppasswords)) |
-| `EMAIL_FROM` | *(empty)* | Sender address |
-| `EMAIL_TO` | *(empty)* | Recipient(s) — comma-separated for multiple |
-
-> Telegram **and** email can run together — every channel that's configured fires
-> on each alert. With notifications on you learn about a broken token **the moment
-> it breaks** — including a startup auth check that fires the instant the container
-> can't reach the remote. A Docker `HEALTHCHECK` also turns **unhealthy** when the
-> last backup is older than ~2 schedule intervals.
-
-> **Per-driver retention.** `MIN_LOCAL_BACKUPS` / `MAX_LOCAL_BACKUPS` /
-> `MAX_REMOTE_BACKUPS` are applied **per source**, not over a flat pool. With the
-> combined `postgres-minio` image, "keep 5" means 5 postgres **and** 5 minio
-> archives — kept paired by timestamp, so every retained DB dump has its matching
-> object-storage snapshot.
-
-### PostgreSQL (`backup:postgres`, `backup:postgres-minio`)
-
-| Variable | Default | Description |
-|---|---|---|
-| `PG_HOST` | *(required)* | Database host |
-| `PG_PORT` | `5432` | Database port |
-| `PG_USER` | *(required)* | Database user |
-| `PG_PASSWORD` | *(required)* | Database password |
-| `PG_DATABASE` | *(required)* | Database name |
-
-### MySQL / MariaDB (`backup:mysql`)
-
-| Variable | Default | Description |
-|---|---|---|
-| `MYSQL_HOST` | *(required)* | Database host |
-| `MYSQL_PORT` | `3306` | Database port |
-| `MYSQL_USER` | *(required)* | Database user |
-| `MYSQL_PASSWORD` | *(required)* | Database password |
-| `MYSQL_DATABASE` | *(required)* | Database name |
-
-### MSSQL (`backup:mssql`)
-
-| Variable | Default | Description |
-|---|---|---|
-| `MSSQL_HOST` | *(required)* | SQL Server host |
-| `MSSQL_PORT` | `1433` | SQL Server port |
-| `MSSQL_USER` | *(required)* | Login name |
-| `MSSQL_PASSWORD` | *(required)* | Password |
-| `MSSQL_DATABASE` | *(required)* | Database name |
-
-> **Note:** MSSQL exports tables to CSV using BCP. For a full schema + data export (.bacpac), install and use [sqlpackage](https://learn.microsoft.com/en-us/sql/tools/sqlpackage) separately.
-
-### MinIO / S3 (`backup:minio`, `backup:postgres-minio`)
-
-| Variable | Default | Description |
-|---|---|---|
-| `MINIO_ENDPOINT` | *(required)* | e.g. `http://minio:9000` or `https://s3.amazonaws.com` |
-| `MINIO_ACCESS_KEY` | *(required)* | Access key / AWS_ACCESS_KEY_ID |
-| `MINIO_SECRET_KEY` | *(required)* | Secret key / AWS_SECRET_ACCESS_KEY |
-| `MINIO_BUCKET` | *(required)* | Bucket name to backup |
-| `MINIO_API` | `S3v4` | API signature version |
+| Destination | What you need |
+|---|---|
+| **Backblaze B2** | Account ID + application key (10 GB free) |
+| **SFTP / SSH** | host + user + password (or a private key) |
+| **WebDAV** | URL + user + password (Nextcloud, ownCloud…) |
+| **S3-compatible** | endpoint + access/secret key (AWS, MinIO, R2, Wasabi…) |
+| **Google Drive / OneDrive / Dropbox / Yandex** | guided OAuth, set up once |
+| **Custom (rclone)** | paste any `rclone.conf` block — 70+ backends |
 
 ---
 
-## 🔄 How It Works
-
-```
-Container start
-    │
-    ├─ setup_rclone   → load rclone config (file or env)
-    │
-    ├─ check_missed   → if backup overdue → backup.sh immediately
-    │                   else             → upload.sh (retry pending files)
-    │
-    └─ supercronic    → runs cron schedules forever
-          │
-          ├─ BACKUP_SCHEDULE  → backup.sh
-          │       │  creates  {PROJECT_NAME}_{driver}_{timestamp}.zip
-          │       └─ (if no UPLOAD_SCHEDULE) → upload.sh
-          │
-          ├─ UPLOAD_SCHEDULE  → upload.sh (optional, independent)
-          │       │  uploads files newer than last successful upload
-          │       │  prunes remote if count > MAX_REMOTE_BACKUPS
-          │       └─ (if no CLEANUP_SCHEDULE) → cleanup.sh
-          │
-          └─ CLEANUP_SCHEDULE → cleanup.sh (optional, independent)
-                  removes local files respecting MIN / MAX limits
-```
-
-**Filename format:** `{PROJECT_NAME}_{driver}_{YYYYMMDD_HHMMSS}.zip`  
-Example: `myapp_postgres_20240815_020001.zip`
-
-**Combined image (`postgres-minio`)** produces two separate files per run:  
-`myapp_postgres_20240815_020001.zip` + `myapp_minio_20240815_020002.zip`
-
----
-
-## 🏗️ Project Structure
+## 🗂️ Repo layout
 
 ```
 backup/
-├── Makefile                     # build & push helpers
-├── docker-compose.example.yml   # usage examples
-├── README.md
-│
-├── scripts/                     # shared across all images
-│   ├── lib.sh                   # shared utilities (log, state_get/set)
-│   ├── entrypoint.sh            # init, missed-task check, cron setup
-│   ├── backup.sh                # orchestrates driver + compression + verify
-│   ├── upload.sh                # rclone upload + remote retention
-│   ├── cleanup.sh               # local retention
-│   ├── healthcheck.sh           # Docker HEALTHCHECK probe
-│   ├── restore.sh               # one-command restore (postgres / mysql)
-│   └── drivers/
-│       ├── postgres.sh          # pg_dump → stdout
-│       ├── mysql.sh             # mysqldump → stdout
-│       ├── mssql.sh             # bcp export → tar → stdout
-│       └── minio.sh             # mc mirror → tar → stdout
-│
-├── postgres/Dockerfile
-├── mysql/Dockerfile
-├── mssql/Dockerfile
-├── minio/Dockerfile
-└── postgres-minio/Dockerfile
+├── api/        .NET 10 Hub (Clean Architecture, CQRS, EF Core + SQLite, SignalR)
+├── web/        Angular UI (standalone components, signals, EN/RU/UZ)
+├── workers/    the Agent (bash scripts + Docker image)
+├── deploy/     docker-compose, Dockerfiles, .env.example
+└── docs/        extra notes (e.g. Google OAuth)
 ```
+
+Key `.env` settings (in `deploy/.env`):
+
+| Variable | Meaning |
+|---|---|
+| `JWT_KEY` | secret that signs login tokens |
+| `HUB_TOKEN` | shared secret between the Hub and its agents |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | first admin login (default admin / admin) |
+| `AGENT_NAME` / `PROJECT_NAME` | names for the bundled local agent |
+| `TZ` | timezone for schedules (e.g. `Asia/Tashkent`) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | optional, for one-click Google Drive |
 
 ---
 
-## 🔧 Building Locally
+## 🔧 Standalone agent (advanced, no Hub)
 
-```bash
-# Clone the repo
-git clone https://github.com/muqimjon/backup.git
-cd backup
+The agent can also run completely on its own — configured purely with environment variables and
+its own `rclone.conf`, with no Hub at all. This is the original lightweight mode and is still
+supported; see [`docs/`](docs/) and `deploy/` for the full environment-variable reference
+(`PG_*`, `MYSQL_*`, `MINIO_*`, `BACKUP_SCHEDULE`, `MAX_REMOTE_BACKUPS`, …).
 
-# Build a single image (context must be repo root)
-docker build -f postgres/Dockerfile -t backup:postgres .
-
-# Or use the Makefile
-make postgres
-make all                    # build every tag
-make IMAGE=myname/backup all
-make IMAGE=myname/backup push
-```
-
----
-
-## 🤝 Adding a New Driver
-
-1. Create `scripts/drivers/yourdb.sh`
-2. The script must **write data to stdout** (backup.sh pipes it to zip):
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-: "${YOURDB_HOST:?YOURDB_HOST is required}"
-# ... validate other required vars
-
-exec yourdb-dump-tool \
-    --host="${YOURDB_HOST}" \
-    --output=stdout
-```
-
-3. Create `yourdb/Dockerfile` (copy an existing one, adjust the client install and `BACKUP_DRIVER`).
-4. Add a `make` target in `Makefile`.
-5. Document env vars in README.
-
----
-
-## 📋 Restore
-
-The image ships a `restore.sh` helper (postgres & mysql). It auto-picks the
-newest archive and handles the encryption password for you:
-
-```bash
-# Restore the newest postgres backup into the configured DB
-docker exec -it mybackup restore.sh postgres
-
-# Restore a specific file
-docker exec -it mybackup restore.sh postgres myapp_postgres_20260624_020000.zip
-```
-
-Manual restore (any environment):
-
-```bash
-# PostgreSQL
-unzip -p backup.zip | psql -h myhost -U myuser -d mydb
-
-# MySQL
-unzip -p backup.zip | mysql -h myhost -u myuser -p mydb
-
-# MinIO (extract then re-upload)
-unzip backup.zip -d ./restore/
-mc mirror ./restore/ myminio/mybucket
-
-# Encrypted backup
-unzip -P "$BACKUP_PASSWORD" -p backup.zip | psql ...
-```
-
-> ⚠️ **Test your restore.** A backup you have never restored is a guess, not a
-> backup. Try it once against a throwaway database.
-
----
-
-## ☁️ Google Drive setup (avoid the #1 failure mode)
-
-Google Drive over OAuth is the most common destination — and its tokens are the
-most common reason uploads silently die. Two things matter:
-
-**1. Publish your OAuth app to "Production".**
-If your OAuth client sits in **Testing** mode, Google **revokes the refresh
-token after 7 days** — backups upload for a week, then every upload fails with
-`invalid_grant`. Fix it once:
-
-> Google Cloud Console → **APIs & Services → OAuth consent screen** →
-> **Publishing status: Testing → "PUBLISH APP" → In production**.
-> (For a personal Drive you do not need Google's verification — just confirm the
-> "unverified app" dialog. Then regenerate the token with `rclone config reconnect`.)
-
-**2. For unattended servers, prefer a Service Account — no tokens to expire.**
-A service account authenticates with a JSON key that never expires and needs no
-browser. Best for headless backups.
-
-```ini
-# rclone.conf
-[gdrive]
-type = drive
-scope = drive
-service_account_file = /etc/rclone/sa.json
-# To drop files in a normal Drive folder, share that folder with the service
-# account's email and set:
-# root_folder_id = <folder id from the Drive URL>
-```
-
-Mount the key alongside the config:
-
-```yaml
-    volumes:
-      - ./rclone.conf:/etc/rclone/rclone.conf:ro
-      - ./sa.json:/etc/rclone/sa.json:ro
-```
-
-> The container always copies your config to a writable location internally, so
-> mounting `rclone.conf` **read-only (`:ro`) is correct and recommended** —
-> token refreshes still work, and your host file is never modified.
+> ⚠️ **Test your restore.** A backup you've never restored is a guess, not a backup. The Hub's
+> restore-drills do this for you automatically — turn one on.
 
 ---
 

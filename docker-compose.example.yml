@@ -107,8 +107,17 @@ services:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# EXAMPLE 3 — PostgreSQL + MinIO combined backup
+# EXAMPLE 3 — PostgreSQL + MinIO combined backup (one consistent "project")
 # ══════════════════════════════════════════════════════════════════════════════
+#
+# Both sources are backed up in ONE run with a SHARED timestamp, so the postgres
+# and minio archives line up as a single point-in-time version (the DB path and
+# the object it points to stay consistent). Two projects on one server → run two
+# of these, each with its own PROJECT_NAME — they back up independently.
+#
+# Optional: add HUB_URL + HUB_TOKEN and this locally-configured project is pushed
+# UP to the hub on first connect — it appears in the web UI ("Projects") and
+# becomes hub-managed. Configure once here, manage from the hub.
 
   backup-combined:
     image: muqimjon/backup:postgres-minio
@@ -116,6 +125,10 @@ services:
     environment:
       PROJECT_NAME: myapp
       TZ: Asia/Tashkent
+
+      # ── Optional: register this project into a hub on first connect ──
+      # HUB_URL: https://hub.example.com
+      # HUB_TOKEN: your-hub-token
 
       # ── PostgreSQL ──────────────────────────────
       PG_HOST: postgres

@@ -1,11 +1,17 @@
 # Run backups without the hub (standalone .env mode)
 
-You don't need the web hub running to make backups. The **same agent image** works two ways,
-decided at startup by whether `HUB_URL` is set:
+You don't need the web hub running to make backups. The **same agent image** works three ways,
+decided at startup by whether `HUB_URL`/`HUB_TOKEN` and a local `.env` config are present:
 
 - **No `HUB_URL`** → standalone mode: the agent reads everything from **`.env`** and runs on its
   own cron (exactly like the classic `muqimjon/backup:*` images). No hub, no extra cost.
-- **`HUB_URL` set** → hub mode: the agent is managed from the web UI.
+- **`HUB_URL` set, no local `.env`** → hub mode: the agent is managed entirely from the web UI.
+- **`HUB_URL` set *and* a local `.env` config (`BACKUP_DRIVER` set)** → **hybrid mode**: the agent
+  prefers the hub, but falls back to its local `.env` config whenever the hub is unreachable, the
+  token is wrong, or no hub job is assigned yet. The moment the hub hands out a job, the agent
+  switches to it **and persists it** (`/backup/.agent.crontab` + `/backup/jobs/`) — so it keeps
+  running that job across restarts and even after the hub is turned off again. Configure once via
+  the hub, shut the hub down, and the agent carries on.
 
 > Prefer a smaller image? The single-source images `muqimjon/backup:postgres` · `:mysql` ·
 > `:minio` · `:postgres-minio` are leaner (one client each) and run env-only too.
@@ -59,4 +65,10 @@ config) and `RCLONE_PATH` (the folder). Build the config once with `rclone confi
 ## When to add the hub later
 
 Set `HUB_URL` + `HUB_TOKEN` on the same agent and it switches to hub mode — web UI manages
-sources, destinations, schedules, versions, restores and notifications. Nothing else changes.
+sources, destinations, schedules, versions, restores and notifications.
+
+Keep the local `.env` source vars in place alongside the hub creds to get **hybrid mode**: the
+agent runs your local config until the hub assigns a job, then follows the hub — and falls back to
+the local config (or its last hub job) if the hub ever becomes unreachable. This is the recommended
+setup for agents you ship to clients: they keep backing up on a sane local default, and you can
+dial in their schedule from your hub on demand without the agent ever stopping.
