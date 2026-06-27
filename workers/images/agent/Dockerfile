@@ -24,14 +24,18 @@ RUN apk add --no-cache \
         postgresql-client \
         mysql-client
 
+# Architecture of the image being built — set automatically by BuildKit/buildx
+# (amd64 | arm64), so the downloaded binaries match the target (multi-arch builds).
+ARG TARGETARCH
+
 # MinIO Client (mc)
-RUN wget -q "https://dl.min.io/client/mc/release/linux-amd64/mc" \
+RUN wget -q "https://dl.min.io/client/mc/release/linux-${TARGETARCH}/mc" \
         -O /usr/local/bin/mc \
     && chmod +x /usr/local/bin/mc
 
 ARG SUPERCRONIC_VERSION=0.2.29
 RUN wget -q \
-        "https://github.com/aptible/supercronic/releases/download/v${SUPERCRONIC_VERSION}/supercronic-linux-amd64" \
+        "https://github.com/aptible/supercronic/releases/download/v${SUPERCRONIC_VERSION}/supercronic-linux-${TARGETARCH}" \
         -O /usr/local/bin/supercronic \
     && chmod +x /usr/local/bin/supercronic
 
