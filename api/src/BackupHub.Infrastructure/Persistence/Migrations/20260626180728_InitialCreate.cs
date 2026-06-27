@@ -22,6 +22,7 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     Drivers = table.Column<string>(type: "TEXT", nullable: false),
                     Version = table.Column<string>(type: "TEXT", nullable: false),
                     TokenHash = table.Column<string>(type: "TEXT", nullable: false),
+                    Enabled = table.Column<bool>(type: "INTEGER", nullable: false),
                     LastSeenAt = table.Column<long>(type: "INTEGER", nullable: true),
                     OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
                     CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
@@ -33,6 +34,26 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Artifacts",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    JobId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    FileName = table.Column<string>(type: "TEXT", nullable: false),
+                    Driver = table.Column<string>(type: "TEXT", nullable: false),
+                    Bytes = table.Column<long>(type: "INTEGER", nullable: false),
+                    ArchivedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    Location = table.Column<int>(type: "INTEGER", nullable: false),
+                    OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Artifacts", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Commands",
                 columns: table => new
                 {
@@ -40,6 +61,7 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     AgentId = table.Column<Guid>(type: "TEXT", nullable: false),
                     Kind = table.Column<int>(type: "INTEGER", nullable: false),
                     JobId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    Payload = table.Column<string>(type: "TEXT", nullable: true),
                     AckedAt = table.Column<long>(type: "INTEGER", nullable: true),
                     OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
                     CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
@@ -48,6 +70,38 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Commands", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "EmailRecipients",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Email = table.Column<string>(type: "TEXT", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", nullable: true),
+                    Lang = table.Column<string>(type: "TEXT", nullable: true),
+                    OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EmailRecipients", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Projects",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", nullable: false),
+                    OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Projects", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -69,24 +123,38 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Sources",
+                name: "Settings",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Name = table.Column<string>(type: "TEXT", nullable: false),
-                    Engine = table.Column<int>(type: "INTEGER", nullable: false),
-                    Host = table.Column<string>(type: "TEXT", nullable: false),
-                    Port = table.Column<int>(type: "INTEGER", nullable: false),
-                    Username = table.Column<string>(type: "TEXT", nullable: false),
-                    SecretEncrypted = table.Column<string>(type: "TEXT", nullable: false),
-                    Target = table.Column<string>(type: "TEXT", nullable: false),
+                    Key = table.Column<string>(type: "TEXT", nullable: false),
+                    ValueEncrypted = table.Column<string>(type: "TEXT", nullable: false),
                     OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
                     CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
                     UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Sources", x => x.Id);
+                    table.PrimaryKey("PK_Settings", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TelegramChats",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ChatId = table.Column<string>(type: "TEXT", nullable: false),
+                    Label = table.Column<string>(type: "TEXT", nullable: true),
+                    Lang = table.Column<string>(type: "TEXT", nullable: true),
+                    Code = table.Column<string>(type: "TEXT", nullable: true),
+                    Confirmed = table.Column<bool>(type: "INTEGER", nullable: false),
+                    OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TelegramChats", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -107,13 +175,45 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Sources",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", nullable: false),
+                    ProjectId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Engine = table.Column<int>(type: "INTEGER", nullable: false),
+                    Host = table.Column<string>(type: "TEXT", nullable: false),
+                    Port = table.Column<int>(type: "INTEGER", nullable: false),
+                    Username = table.Column<string>(type: "TEXT", nullable: false),
+                    SecretEncrypted = table.Column<string>(type: "TEXT", nullable: false),
+                    Target = table.Column<string>(type: "TEXT", nullable: false),
+                    Origin = table.Column<int>(type: "INTEGER", nullable: false),
+                    Confirmed = table.Column<bool>(type: "INTEGER", nullable: false),
+                    Visibility = table.Column<int>(type: "INTEGER", nullable: false),
+                    DiscoveredByAgentId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Sources", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Sources_Projects_ProjectId",
+                        column: x => x.ProjectId,
+                        principalTable: "Projects",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Jobs",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     Name = table.Column<string>(type: "TEXT", nullable: false),
                     Enabled = table.Column<bool>(type: "INTEGER", nullable: false),
-                    SourceId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ProjectId = table.Column<Guid>(type: "TEXT", nullable: false),
                     RemoteId = table.Column<Guid>(type: "TEXT", nullable: false),
                     AgentId = table.Column<Guid>(type: "TEXT", nullable: true),
                     BackupSchedule = table.Column<string>(type: "TEXT", nullable: false),
@@ -138,13 +238,42 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                         principalTable: "Agents",
                         principalColumn: "Id");
                     table.ForeignKey(
+                        name: "FK_Jobs_Projects_ProjectId",
+                        column: x => x.ProjectId,
+                        principalTable: "Projects",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
                         name: "FK_Jobs_Remotes_RemoteId",
                         column: x => x.RemoteId,
                         principalTable: "Remotes",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "JobSources",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    JobId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    SourceId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Position = table.Column<int>(type: "INTEGER", nullable: false),
+                    OwnerId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_JobSources", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Jobs_Sources_SourceId",
+                        name: "FK_JobSources_Jobs_JobId",
+                        column: x => x.JobId,
+                        principalTable: "Jobs",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_JobSources_Sources_SourceId",
                         column: x => x.SourceId,
                         principalTable: "Sources",
                         principalColumn: "Id",
@@ -185,9 +314,21 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                 columns: new[] { "Hostname", "Project" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_Artifacts_JobId_FileName",
+                table: "Artifacts",
+                columns: new[] { "JobId", "FileName" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Commands_AgentId_AckedAt",
                 table: "Commands",
                 columns: new[] { "AgentId", "AckedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EmailRecipients_Email",
+                table: "EmailRecipients",
+                column: "Email",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Jobs_AgentId",
@@ -195,13 +336,24 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                 column: "AgentId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Jobs_ProjectId",
+                table: "Jobs",
+                column: "ProjectId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Jobs_RemoteId",
                 table: "Jobs",
                 column: "RemoteId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Jobs_SourceId",
-                table: "Jobs",
+                name: "IX_JobSources_JobId_SourceId",
+                table: "JobSources",
+                columns: new[] { "JobId", "SourceId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_JobSources_SourceId",
+                table: "JobSources",
                 column: "SourceId");
 
             migrationBuilder.CreateIndex(
@@ -215,6 +367,17 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                 column: "StartedAt");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Settings_Key",
+                table: "Settings",
+                column: "Key",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Sources_ProjectId",
+                table: "Sources",
+                column: "ProjectId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Users_Username",
                 table: "Users",
                 column: "Username",
@@ -225,13 +388,31 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "Artifacts");
+
+            migrationBuilder.DropTable(
                 name: "Commands");
+
+            migrationBuilder.DropTable(
+                name: "EmailRecipients");
+
+            migrationBuilder.DropTable(
+                name: "JobSources");
 
             migrationBuilder.DropTable(
                 name: "Runs");
 
             migrationBuilder.DropTable(
+                name: "Settings");
+
+            migrationBuilder.DropTable(
+                name: "TelegramChats");
+
+            migrationBuilder.DropTable(
                 name: "Users");
+
+            migrationBuilder.DropTable(
+                name: "Sources");
 
             migrationBuilder.DropTable(
                 name: "Jobs");
@@ -240,10 +421,10 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                 name: "Agents");
 
             migrationBuilder.DropTable(
-                name: "Remotes");
+                name: "Projects");
 
             migrationBuilder.DropTable(
-                name: "Sources");
+                name: "Remotes");
         }
     }
 }

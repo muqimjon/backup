@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
-import { RunBroadcast } from './models';
+import { RunBroadcast, TestResult } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class Live {
@@ -8,6 +8,7 @@ export class Live {
 
   readonly connected = signal(false);
   readonly last = signal<RunBroadcast | null>(null);
+  readonly lastTest = signal<TestResult | null>(null);
 
   start(): void {
     if (this.connection) return;
@@ -18,6 +19,7 @@ export class Live {
       .build();
 
     this.connection.on('run', (run: RunBroadcast) => this.last.set(run));
+    this.connection.on('testResult', (r: TestResult) => this.lastTest.set(r));
     this.connection.onreconnected(() => this.connected.set(true));
     this.connection.onclose(() => this.connected.set(false));
 

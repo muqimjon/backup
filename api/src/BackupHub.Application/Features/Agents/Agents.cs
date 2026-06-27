@@ -48,15 +48,20 @@ internal sealed class RegisterAgentHandler(IAppDbContext db)
     }
 }
 
-public sealed record AgentJobDto(
-    Guid JobId,
-    string Name,
+// One source the agent must back up, with its decrypted secret. Ordered by
+// Position so the agent runs databases before object storage (consistency).
+public sealed record AgentSourceDto(
     BackupEngine Engine,
     string Host,
     int Port,
     string Username,
     string Secret,
-    string Target,
+    string Target);
+
+public sealed record AgentJobDto(
+    Guid JobId,
+    string Name,
+    IReadOnlyList<AgentSourceDto> Sources,
     Guid RemoteId,
     RemoteType RemoteType,
     string RemotePath,
@@ -86,19 +91,23 @@ internal sealed class GetAgentJobsHandler(IAppDbContext db, ISecretProtector pro
 
         var jobs = await db.Jobs
             .Where(j => j.AgentId == query.AgentId && j.Enabled)
-            .Include(j => j.Source)
+            .Include(j => j.JobSources).ThenInclude(js => js.Source)
             .Include(j => j.Remote)
             .ToListAsync(ct);
 
         return jobs.Select(j => new AgentJobDto(
             j.Id,
             j.Name,
-            j.Source.Engine,
-            j.Source.Host,
-            j.Source.Port,
-            j.Source.Username,
-            protector.Unprotect(j.Source.SecretEncrypted),
-            j.Source.Target,
+            j.JobSources
+                .OrderBy(js => js.Position)
+                .Select(js => new AgentSourceDto(
+                    js.Source.Engine,
+                    js.Source.Host,
+                    js.Source.Port,
+                    js.Source.Username,
+                    protector.Unprotect(js.Source.SecretEncrypted),
+                    js.Source.Target))
+                .ToList(),
             j.RemoteId,
             j.Remote.Type,
             j.Remote.Path,
@@ -143,11 +152,22 @@ internal sealed class GetPendingCommandsHandler(IAppDbContext db)
     : IRequestHandler<GetPendingCommandsQuery, IReadOnlyList<AgentCommandDto>>
 {
     public async ValueTask<IReadOnlyList<AgentCommandDto>> Handle(GetPendingCommandsQuery query, CancellationToken ct)
-        => await db.Commands
+    {
+        // The command poll doubles as the agent heartbeat — keep LastSeenAt fresh
+        // so "online" reflects a live, polling agent (not just one mid-backup).
+        var agent = await db.Agents.FirstOrDefaultAsync(a => a.Id == query.AgentId, ct);
+        if (agent is not null)
+        {
+            agent.LastSeenAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(ct);
+        }
+
+        return await db.Commands
             .Where(c => c.AgentId == query.AgentId && c.AckedAt == null)
             .OrderBy(c => c.CreatedAt)
             .Select(c => new AgentCommandDto(c.Id, c.Kind, c.JobId, c.Payload))
             .ToListAsync(ct);
+    }
 }
 
 public sealed record AckCommandCommand(Guid CommandId) : IRequest<bool>;

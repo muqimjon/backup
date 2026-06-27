@@ -1,7 +1,9 @@
 import { BackupEngine, RemoteType, RunStatus, RunType } from './models';
 
+// MSSQL (2) is kept in the enum but set aside in the UI for now — only the
+// fully-supported engines (backup + automated restore) are offered.
 export const engineLabel = (e: BackupEngine) =>
-  ({ 0: 'PostgreSQL', 1: 'MySQL', 2: 'MSSQL', 3: 'MinIO / S3' })[e] ?? 'Unknown';
+  ({ 0: 'PostgreSQL', 1: 'MySQL / MariaDB', 2: 'MSSQL', 3: 'S3 / MinIO' })[e] ?? 'Unknown';
 
 export const remoteTypeLabel = (t: RemoteType) =>
   ({ 0: 'Google Drive', 1: 'S3-compatible', 2: 'Custom (rclone)', 3: 'Backblaze B2', 4: 'SFTP', 5: 'WebDAV', 6: 'OneDrive', 7: 'Dropbox', 8: 'Yandex Disk' })[t] ?? 'Unknown';

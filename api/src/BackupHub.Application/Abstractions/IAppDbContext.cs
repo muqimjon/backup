@@ -7,9 +7,11 @@ public interface IAppDbContext
 {
     DbSet<User> Users { get; }
     DbSet<Agent> Agents { get; }
+    DbSet<Project> Projects { get; }
     DbSet<Source> Sources { get; }
     DbSet<Remote> Remotes { get; }
     DbSet<BackupJob> Jobs { get; }
+    DbSet<JobSource> JobSources { get; }
     DbSet<BackupRun> Runs { get; }
     DbSet<AgentCommand> Commands { get; }
     DbSet<Setting> Settings { get; }

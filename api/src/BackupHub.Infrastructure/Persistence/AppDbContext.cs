@@ -9,9 +9,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<Agent> Agents => Set<Agent>();
+    public DbSet<Project> Projects => Set<Project>();
     public DbSet<Source> Sources => Set<Source>();
     public DbSet<Remote> Remotes => Set<Remote>();
     public DbSet<BackupJob> Jobs => Set<BackupJob>();
+    public DbSet<JobSource> JobSources => Set<JobSource>();
     public DbSet<BackupRun> Runs => Set<BackupRun>();
     public DbSet<AgentCommand> Commands => Set<AgentCommand>();
     public DbSet<Setting> Settings => Set<Setting>();
@@ -34,9 +36,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         builder.Entity<BackupArtifact>().HasIndex(a => new { a.JobId, a.FileName }).IsUnique();
         builder.Entity<EmailRecipient>().HasIndex(e => e.Email).IsUnique();
 
+        builder.Entity<Source>()
+            .HasOne(s => s.Project).WithMany(p => p.Sources).HasForeignKey(s => s.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
         builder.Entity<BackupJob>()
-            .HasOne(j => j.Source).WithMany().HasForeignKey(j => j.SourceId)
+            .HasOne(j => j.Project).WithMany().HasForeignKey(j => j.ProjectId)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<JobSource>()
+            .HasOne(js => js.Job).WithMany(j => j.JobSources).HasForeignKey(js => js.JobId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<JobSource>()
+            .HasOne(js => js.Source).WithMany().HasForeignKey(js => js.SourceId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<JobSource>().HasIndex(js => new { js.JobId, js.SourceId }).IsUnique();
         builder.Entity<BackupJob>()
             .HasOne(j => j.Remote).WithMany().HasForeignKey(j => j.RemoteId)
             .OnDelete(DeleteBehavior.Restrict);

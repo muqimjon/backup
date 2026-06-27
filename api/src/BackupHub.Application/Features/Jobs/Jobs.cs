@@ -1,6 +1,7 @@
 using BackupHub.Application.Abstractions;
 using BackupHub.Application.Common;
 using BackupHub.Domain.Entities;
+using BackupHub.Domain.Enums;
 using FluentValidation;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -11,8 +12,10 @@ public sealed record JobDto(
     Guid Id,
     string Name,
     bool Enabled,
-    Guid SourceId,
-    string SourceName,
+    Guid ProjectId,
+    string ProjectName,
+    IReadOnlyList<Guid> SourceIds,
+    IReadOnlyList<string> SourceNames,
     Guid RemoteId,
     string RemoteName,
     Guid? AgentId,
@@ -31,21 +34,58 @@ internal sealed class GetJobsHandler(IAppDbContext db)
     : IRequestHandler<GetJobsQuery, IReadOnlyList<JobDto>>
 {
     public async ValueTask<IReadOnlyList<JobDto>> Handle(GetJobsQuery query, CancellationToken ct)
-        => await db.Jobs
+    {
+        var jobs = await db.Jobs
             .OrderBy(j => j.Name)
-            .Select(j => new JobDto(
+            .Include(j => j.Project)
+            .Include(j => j.JobSources).ThenInclude(js => js.Source)
+            .Include(j => j.Remote)
+            .ToListAsync(ct);
+
+        return jobs.Select(j =>
+        {
+            var ordered = j.JobSources.OrderBy(js => js.Position).ToList();
+            return new JobDto(
                 j.Id, j.Name, j.Enabled,
-                j.SourceId, j.Source.Name,
+                j.ProjectId, j.Project.Name,
+                ordered.Select(js => js.SourceId).ToList(),
+                ordered.Select(js => js.Source.Name).ToList(),
                 j.RemoteId, j.Remote.Name,
                 j.AgentId,
                 j.BackupSchedule, j.UploadSchedule, j.CleanupSchedule, j.DrillSchedule,
-                j.MinLocalBackups, j.MaxLocalBackups, j.MaxRemoteBackups, j.CompressionLevel))
-            .ToListAsync(ct);
+                j.MinLocalBackups, j.MaxLocalBackups, j.MaxRemoteBackups, j.CompressionLevel);
+        }).ToList();
+    }
+}
+
+// Orders the chosen sources into JobSource rows: databases first, object storage
+// (MinIO) last, so the agent's combined run dumps the DB before mirroring objects
+// — the DB dump can never reference an object the mirror is missing.
+internal static class JobSourceOrdering
+{
+    public static List<JobSource> Build(IReadOnlyList<Source> sources)
+        => sources
+            .OrderBy(s => s.Engine == BackupEngine.Minio ? 1 : 0)
+            .Select((s, i) => new JobSource { SourceId = s.Id, Position = i })
+            .ToList();
+
+    // The agent runs one source per engine in a combined run — its per-engine env
+    // vars (PG_*/MYSQL_*/MINIO_*) and the {project}_{driver}_{ts}.zip archive name
+    // collide for two sources of the same engine, silently backing up only one.
+    // Reject that here so a job can never quietly lose a database.
+    public static void EnsureOneSourcePerEngine(IReadOnlyList<Source> sources)
+    {
+        var dup = sources.GroupBy(s => s.Engine).FirstOrDefault(g => g.Count() > 1);
+        if (dup is not null)
+            throw new ConflictException(
+                $"A job can include at most one {dup.Key} source — the agent backs up one per engine in a combined run. Put same-engine sources in separate jobs.");
+    }
 }
 
 public sealed record CreateJobCommand(
     string Name,
-    Guid SourceId,
+    Guid ProjectId,
+    IReadOnlyList<Guid> SourceIds,
     Guid RemoteId,
     Guid? AgentId,
     string BackupSchedule,
@@ -63,7 +103,8 @@ public sealed class CreateJobValidator : AbstractValidator<CreateJobCommand>
     public CreateJobValidator()
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
-        RuleFor(x => x.SourceId).NotEmpty();
+        RuleFor(x => x.ProjectId).NotEmpty();
+        RuleFor(x => x.SourceIds).NotEmpty().WithMessage("Select at least one source");
         RuleFor(x => x.RemoteId).NotEmpty();
         RuleFor(x => x.BackupSchedule).NotEmpty();
         RuleFor(x => x.MinLocalBackups).GreaterThanOrEqualTo(1);
@@ -78,15 +119,21 @@ internal sealed class CreateJobHandler(IAppDbContext db, ISecretProtector protec
 {
     public async ValueTask<Guid> Handle(CreateJobCommand command, CancellationToken ct)
     {
-        if (!await db.Sources.AnyAsync(s => s.Id == command.SourceId, ct))
-            throw new NotFoundException("Source not found");
+        // Sources must belong to the job's project.
+        var sources = await db.Sources
+            .Where(s => command.SourceIds.Contains(s.Id) && s.ProjectId == command.ProjectId)
+            .ToListAsync(ct);
+        if (sources.Count != command.SourceIds.Distinct().Count())
+            throw new NotFoundException("One or more sources don't belong to this project");
+        JobSourceOrdering.EnsureOneSourcePerEngine(sources);
         if (!await db.Remotes.AnyAsync(r => r.Id == command.RemoteId, ct))
             throw new NotFoundException("Remote not found");
 
         var job = new BackupJob
         {
             Name = command.Name,
-            SourceId = command.SourceId,
+            ProjectId = command.ProjectId,
+            JobSources = JobSourceOrdering.Build(sources),
             RemoteId = command.RemoteId,
             AgentId = command.AgentId,
             BackupSchedule = command.BackupSchedule,
@@ -112,7 +159,8 @@ public sealed record UpdateJobCommand(
     Guid Id,
     string Name,
     bool Enabled,
-    Guid SourceId,
+    Guid ProjectId,
+    IReadOnlyList<Guid> SourceIds,
     Guid RemoteId,
     Guid? AgentId,
     string BackupSchedule,
@@ -130,7 +178,8 @@ public sealed class UpdateJobValidator : AbstractValidator<UpdateJobCommand>
     public UpdateJobValidator()
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
-        RuleFor(x => x.SourceId).NotEmpty();
+        RuleFor(x => x.ProjectId).NotEmpty();
+        RuleFor(x => x.SourceIds).NotEmpty().WithMessage("Select at least one source");
         RuleFor(x => x.RemoteId).NotEmpty();
         RuleFor(x => x.BackupSchedule).NotEmpty();
         RuleFor(x => x.MinLocalBackups).GreaterThanOrEqualTo(1);
@@ -145,12 +194,31 @@ internal sealed class UpdateJobHandler(IAppDbContext db, ISecretProtector protec
 {
     public async ValueTask<bool> Handle(UpdateJobCommand command, CancellationToken ct)
     {
-        var job = await db.Jobs.FirstOrDefaultAsync(j => j.Id == command.Id, ct)
+        var job = await db.Jobs
+            .Include(j => j.JobSources)
+            .FirstOrDefaultAsync(j => j.Id == command.Id, ct)
             ?? throw new NotFoundException("Job not found");
+
+        var sources = await db.Sources
+            .Where(s => command.SourceIds.Contains(s.Id) && s.ProjectId == command.ProjectId)
+            .ToListAsync(ct);
+        if (sources.Count != command.SourceIds.Distinct().Count())
+            throw new NotFoundException("One or more sources don't belong to this project");
+        JobSourceOrdering.EnsureOneSourcePerEngine(sources);
 
         job.Name = command.Name;
         job.Enabled = command.Enabled;
-        job.SourceId = command.SourceId;
+        job.ProjectId = command.ProjectId;
+        // Replace the source links: delete the old rows, then add the new ones
+        // straight to the DbSet with an explicit JobId. Adding to the tracked
+        // parent's navigation lets EF mis-detect these client-keyed rows as updates
+        // and fail with a 0-rows concurrency error.
+        db.JobSources.RemoveRange(job.JobSources);
+        foreach (var js in JobSourceOrdering.Build(sources))
+        {
+            js.JobId = job.Id;
+            db.JobSources.Add(js);
+        }
         job.RemoteId = command.RemoteId;
         job.AgentId = command.AgentId;
         job.BackupSchedule = command.BackupSchedule;

@@ -3,11 +3,14 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Api } from '../../core/api';
 import { Lang } from '../../core/lang';
-import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '../../core/models';
+import { Toast } from '../../core/toast';
+import { engineLabel } from '../../core/format';
+import { Schedule } from '../../shared/schedule';
+import { AgentDto, CommandKind, CreateJob, JobDto, ProjectDto, RemoteDto } from '../../core/models';
 
 @Component({
   selector: 'app-jobs',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, Schedule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="row">
@@ -15,8 +18,6 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
       <div class="spacer"></div>
       <button (click)="openNew()">{{ lang.t('jobs.add') }}</button>
     </div>
-
-    @if (notice()) { <div class="notice">{{ notice() }}</div> }
 
     @if (items().length === 0) {
       <div class="card"><p class="muted">{{ lang.t('empty.jobs') }}</p></div>
@@ -27,7 +28,7 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
             <div class="jhead">
               <div>
                 <div class="jname">{{ j.name }} @if (!j.enabled) { <span class="off">{{ lang.t('j.paused') }}</span> }</div>
-                <div class="what">{{ lang.t('j.backsUp') }} <b>{{ srcName(j) }}</b> → <b>{{ j.remoteName }}</b></div>
+                <div class="what">{{ lang.t('j.backsUp') }} <b>{{ j.projectName }}</b> <span class="muted">({{ srcName(j) }})</span> → <b>{{ j.remoteName }}</b></div>
               </div>
               <div class="spacer"></div>
               <a class="ghost btn" [routerLink]="['/backups', j.id]">{{ lang.t('btn.versions') }}</a>
@@ -60,10 +61,10 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
         <div class="modal" (click)="$event.stopPropagation()">
           <div class="mhead"><h3>{{ editingId() ? lang.t('m.editJob') : lang.t('m.addJob') }}</h3><button class="x" (click)="formOpen.set(false)">✕</button></div>
           <div class="mbody">
-            @if (sources().length === 0 || remotes().length === 0) {
+            @if (projects().length === 0 || remotes().length === 0) {
               <div class="hint">
-                @if (sources().length === 0) { <span>⚠ Create a <b>Source</b> first.</span> }
-                @if (remotes().length === 0) { <span>⚠ Add a <b>Destination</b> first.</span> }
+                @if (projects().length === 0) { <span>⚠ {{ lang.t('j.needProject') }}</span> }
+                @if (remotes().length === 0) { <span>⚠ {{ lang.t('j.needDest') }}</span> }
               </div>
             }
             <div class="grid g2">
@@ -74,34 +75,55 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
                   @for (a of enabledAgents(); track a.id) { <option [ngValue]="a.id">{{ a.name }} ({{ a.project }})</option> }
                 </select>
               </div>
-              <div><label>{{ lang.t('f.source') }}</label>
-                <select [(ngModel)]="form.sourceId">
-                  <option [ngValue]="''" disabled>Select source</option>
-                  @for (s of sources(); track s.id) { <option [ngValue]="s.id">{{ s.name }}</option> }
+              <div class="span2"><label>{{ lang.t('f.project') }}</label>
+                <select [ngModel]="form.projectId" (ngModelChange)="onProjectChange($event)">
+                  <option [ngValue]="''" disabled>{{ lang.t('j.pickProject') }}</option>
+                  @for (p of projects(); track p.id) { <option [ngValue]="p.id">{{ p.name }}</option> }
                 </select>
               </div>
-              <div><label>{{ lang.t('f.destination') }}</label>
+              @if (selectedProject(); as proj) {
+                <div class="span2"><label>{{ lang.t('f.sources') }}</label>
+                  <div class="srcpick">
+                    @for (s of proj.sources; track s.id) {
+                      <label class="chip" [class.on]="isPicked(s.id)">
+                        <input type="checkbox" [checked]="isPicked(s.id)" (change)="toggleSource(s.id)" />
+                        {{ s.name }} <span class="eng">{{ engineLabel(s.engine) }}</span>
+                      </label>
+                    }
+                    @if (proj.sources.length === 0) { <span class="muted">{{ lang.t('projects.noSources') }}</span> }
+                  </div>
+                  <p class="pickhint">{{ lang.t('j.sourcesHint') }}</p>
+                </div>
+              }
+              <div class="span2"><label>{{ lang.t('f.destination') }}</label>
                 <select [(ngModel)]="form.remoteId">
                   <option [ngValue]="''" disabled>Select destination</option>
                   @for (r of remotes(); track r.id) { <option [ngValue]="r.id">{{ r.name }}</option> }
                 </select>
               </div>
-              <div><label>Backup schedule (cron)</label><input [(ngModel)]="form.backupSchedule" /></div>
-              <div><label>Upload schedule (optional)</label><input [(ngModel)]="form.uploadSchedule" /></div>
-              <div><label>Cleanup schedule (optional)</label><input [(ngModel)]="form.cleanupSchedule" /></div>
-              <div><label>Restore-drill schedule (optional)</label><input [(ngModel)]="form.drillSchedule" placeholder="0 4 * * 0" /></div>
+              <div class="span2 scheds">
+                <app-schedule [label]="lang.t('f.sBackup')" [value]="form.backupSchedule" (valueChange)="form.backupSchedule = $event" />
+                <app-schedule [label]="lang.t('f.sUpload')" [optional]="true" [value]="form.uploadSchedule" (valueChange)="form.uploadSchedule = $event" />
+                <app-schedule [label]="lang.t('f.sCleanup')" [optional]="true" [value]="form.cleanupSchedule" (valueChange)="form.cleanupSchedule = $event" />
+                <app-schedule [label]="lang.t('f.sDrill')" [optional]="true" [value]="form.drillSchedule" (valueChange)="form.drillSchedule = $event" />
+              </div>
               <div><label>Min local</label><input type="number" [(ngModel)]="form.minLocalBackups" /></div>
               <div><label>Max local</label><input type="number" [(ngModel)]="form.maxLocalBackups" /></div>
               <div><label>Max remote</label><input type="number" [(ngModel)]="form.maxRemoteBackups" /></div>
               <div><label>Compression (1-9)</label><input type="number" [(ngModel)]="form.compressionLevel" /></div>
-              <div class="span2"><label>Encryption password ({{ editingId() ? 'leave blank to keep' : 'optional' }})</label><input type="password" [(ngModel)]="form.backupPassword" /></div>
+              <div class="span2"><label>Encryption password ({{ editingId() ? 'leave blank to keep' : 'optional' }})</label>
+                <div class="pw">
+                  <input [type]="showPw() ? 'text' : 'password'" [(ngModel)]="form.backupPassword" />
+                  <button type="button" class="eye" (click)="showPw.set(!showPw())" [title]="showPw() ? 'Hide' : 'Show'">{{ showPw() ? '🙈' : '👁️' }}</button>
+                </div>
+              </div>
             </div>
             @if (error()) { <div class="err">{{ error() }}</div> }
             <div class="row foot">
               <label class="en"><input type="checkbox" [(ngModel)]="enabled" /> Enabled</label>
               <div class="spacer"></div>
               <button class="ghost" (click)="formOpen.set(false)">{{ lang.t('btn.cancel') }}</button>
-              <button (click)="save()" [disabled]="saving() || !form.name || !form.sourceId || !form.remoteId">{{ lang.t('btn.save') }}</button>
+              <button (click)="save()" [disabled]="saving() || !form.name || !form.projectId || form.sourceIds.length === 0 || !form.remoteId">{{ lang.t('btn.save') }}</button>
             </div>
           </div>
         </div>
@@ -137,6 +159,18 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
     .mbody { padding: 22px; overflow-y: auto; }
     .g2 { grid-template-columns: 1fr 1fr; }
     .span2 { grid-column: 1 / -1; }
+    .scheds { display: flex; flex-direction: column; gap: 10px; }
+    .pw { position: relative; }
+    .pw input { width: 100%; padding-right: 42px; }
+    .pw .eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); margin: 0;
+               background: transparent; border: none; padding: 4px 6px; cursor: pointer; font-size: 15px; }
+    .srcpick { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 10px;
+            border: 1px solid var(--border); background: var(--surface-2); cursor: pointer; font-size: 13px; }
+    .chip.on { border-color: var(--primary); background: rgba(91,140,255,.12); color: var(--text); }
+    .chip input { width: auto; margin: 0; }
+    .chip .eng { color: var(--muted); font-size: 11px; }
+    .pickhint { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
     .hint { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; padding: 10px 14px;
             border-radius: 8px; background: rgba(224,169,59,.12); color: var(--warn); }
     .err { color: var(--fail); margin-top: 12px; }
@@ -148,32 +182,48 @@ import { AgentDto, CommandKind, CreateJob, JobDto, RemoteDto, SourceDto } from '
 export class Jobs {
   private api = inject(Api);
   lang = inject(Lang);
+  private toast = inject(Toast);
 
   items = signal<JobDto[]>([]);
-  sources = signal<SourceDto[]>([]);
+  projects = signal<ProjectDto[]>([]);
   remotes = signal<RemoteDto[]>([]);
   agents = signal<AgentDto[]>([]);
   formOpen = signal(false);
   editingId = signal<string | null>(null);
   saving = signal(false);
   error = signal<string | null>(null);
-  notice = signal<string | null>(null);
   enabled = true;
+  showPw = signal(false);
 
   form: CreateJob = this.empty();
 
   constructor() {
     this.load();
-    this.api.sources().subscribe(s => this.sources.set(s));
+    this.api.projects().subscribe(p => this.projects.set(p));
     this.api.remotes().subscribe(r => this.remotes.set(r));
     this.api.agents().subscribe(a => this.agents.set(a));
+  }
+
+  selectedProject() { return this.projects().find(p => p.id === this.form.projectId) ?? null; }
+  onProjectChange(projectId: string) {
+    this.form.projectId = projectId;
+    const proj = this.projects().find(p => p.id === projectId);
+    this.form.sourceIds = proj ? proj.sources.map(s => s.id) : []; // default: all of the project
   }
 
   load() { this.api.jobs().subscribe(j => this.items.set(j)); }
 
   enabledAgents() { return this.agents().filter(a => a.enabled); }
 
-  srcName(j: JobDto) { return j.sourceName; }
+  engineLabel = engineLabel;
+
+  srcName(j: JobDto) { return j.sourceNames.join(' + '); }
+  isPicked(id: string) { return this.form.sourceIds.includes(id); }
+  toggleSource(id: string) {
+    this.form.sourceIds = this.isPicked(id)
+      ? this.form.sourceIds.filter(x => x !== id)
+      : [...this.form.sourceIds, id];
+  }
   agentName(j: JobDto) {
     if (!j.agentId) return '🖥️ no agent';
     return '🖥️ ' + (this.agents().find(a => a.id === j.agentId)?.name ?? 'agent');
@@ -181,6 +231,7 @@ export class Jobs {
 
   openNew() {
     this.editingId.set(null);
+    this.showPw.set(false);
     this.form = this.empty();
     if (this.enabledAgents().length === 1) this.form.agentId = this.enabledAgents()[0].id;
     this.enabled = true;
@@ -190,10 +241,11 @@ export class Jobs {
 
   edit(j: JobDto) {
     this.editingId.set(j.id);
+    this.showPw.set(false);
     this.enabled = j.enabled;
     this.error.set(null);
     this.form = {
-      name: j.name, sourceId: j.sourceId, remoteId: j.remoteId, agentId: j.agentId,
+      name: j.name, projectId: j.projectId, sourceIds: [...j.sourceIds], remoteId: j.remoteId, agentId: j.agentId,
       backupSchedule: j.backupSchedule, uploadSchedule: j.uploadSchedule,
       cleanupSchedule: j.cleanupSchedule, drillSchedule: j.drillSchedule,
       minLocalBackups: j.minLocalBackups, maxLocalBackups: j.maxLocalBackups,
@@ -238,7 +290,7 @@ export class Jobs {
     });
   }
 
-  private flash(msg: string) { this.notice.set(msg); setTimeout(() => this.notice.set(null), 6000); }
+  private flash(msg: string) { this.toast.show(msg); }
 
   private msg(e: any): string {
     return e?.error?.error
@@ -248,7 +300,7 @@ export class Jobs {
 
   private empty(): CreateJob {
     return {
-      name: '', sourceId: '', remoteId: '', agentId: null,
+      name: '', projectId: '', sourceIds: [], remoteId: '', agentId: null,
       backupSchedule: '0 2 * * *', uploadSchedule: null, cleanupSchedule: null, drillSchedule: null,
       minLocalBackups: 2, maxLocalBackups: 5, maxRemoteBackups: 30, compressionLevel: 6, backupPassword: null,
     };

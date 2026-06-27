@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BackupHub.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260625131005_AddSettingsArtifactsTelegram")]
-    partial class AddSettingsArtifactsTelegram
+    [Migration("20260626180728_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -32,6 +32,9 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     b.Property<string>("Drivers")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Hostname")
                         .IsRequired()
@@ -196,10 +199,10 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("OwnerId")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("RemoteId")
+                    b.Property<Guid>("ProjectId")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("SourceId")
+                    b.Property<Guid>("RemoteId")
                         .HasColumnType("TEXT");
 
                     b.Property<long?>("UpdatedAt")
@@ -212,9 +215,9 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AgentId");
 
-                    b.HasIndex("RemoteId");
+                    b.HasIndex("ProjectId");
 
-                    b.HasIndex("SourceId");
+                    b.HasIndex("RemoteId");
 
                     b.ToTable("Jobs");
                 });
@@ -265,6 +268,97 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     b.HasIndex("StartedAt");
 
                     b.ToTable("Runs");
+                });
+
+            modelBuilder.Entity("BackupHub.Domain.Entities.EmailRecipient", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Lang")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("OwnerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("EmailRecipients");
+                });
+
+            modelBuilder.Entity("BackupHub.Domain.Entities.JobSource", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("OwnerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("SourceId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceId");
+
+                    b.HasIndex("JobId", "SourceId")
+                        .IsUnique();
+
+                    b.ToTable("JobSources");
+                });
+
+            modelBuilder.Entity("BackupHub.Domain.Entities.Project", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("OwnerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Projects");
                 });
 
             modelBuilder.Entity("BackupHub.Domain.Entities.Remote", b =>
@@ -339,8 +433,14 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("Confirmed")
+                        .HasColumnType("INTEGER");
+
                     b.Property<long>("CreatedAt")
                         .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("DiscoveredByAgentId")
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("Engine")
                         .HasColumnType("INTEGER");
@@ -353,11 +453,17 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Origin")
+                        .HasColumnType("INTEGER");
+
                     b.Property<Guid?>("OwnerId")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Port")
                         .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("SecretEncrypted")
                         .IsRequired()
@@ -374,7 +480,12 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Visibility")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
 
                     b.ToTable("Sources");
                 });
@@ -399,6 +510,9 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Label")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Lang")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("OwnerId")
@@ -453,23 +567,23 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                         .WithMany("Jobs")
                         .HasForeignKey("AgentId");
 
+                    b.HasOne("BackupHub.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("BackupHub.Domain.Entities.Remote", "Remote")
                         .WithMany()
                         .HasForeignKey("RemoteId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("BackupHub.Domain.Entities.Source", "Source")
-                        .WithMany()
-                        .HasForeignKey("SourceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.Navigation("Agent");
 
-                    b.Navigation("Remote");
+                    b.Navigation("Project");
 
-                    b.Navigation("Source");
+                    b.Navigation("Remote");
                 });
 
             modelBuilder.Entity("BackupHub.Domain.Entities.BackupRun", b =>
@@ -483,6 +597,36 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
                     b.Navigation("Job");
                 });
 
+            modelBuilder.Entity("BackupHub.Domain.Entities.JobSource", b =>
+                {
+                    b.HasOne("BackupHub.Domain.Entities.BackupJob", "Job")
+                        .WithMany("JobSources")
+                        .HasForeignKey("JobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BackupHub.Domain.Entities.Source", "Source")
+                        .WithMany()
+                        .HasForeignKey("SourceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Job");
+
+                    b.Navigation("Source");
+                });
+
+            modelBuilder.Entity("BackupHub.Domain.Entities.Source", b =>
+                {
+                    b.HasOne("BackupHub.Domain.Entities.Project", "Project")
+                        .WithMany("Sources")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("BackupHub.Domain.Entities.Agent", b =>
                 {
                     b.Navigation("Jobs");
@@ -490,7 +634,14 @@ namespace BackupHub.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("BackupHub.Domain.Entities.BackupJob", b =>
                 {
+                    b.Navigation("JobSources");
+
                     b.Navigation("Runs");
+                });
+
+            modelBuilder.Entity("BackupHub.Domain.Entities.Project", b =>
+                {
+                    b.Navigation("Sources");
                 });
 #pragma warning restore 612, 618
         }

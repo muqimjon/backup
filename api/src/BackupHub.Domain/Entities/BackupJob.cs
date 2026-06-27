@@ -2,13 +2,20 @@ using BackupHub.Domain.Common;
 
 namespace BackupHub.Domain.Entities;
 
+// A backup job IS a "project": it bundles one or more related sources (e.g. a
+// PostgreSQL database + its MinIO bucket) backed up together as one consistent,
+// point-in-time version. The agent runs every source in a single combined run.
 public class BackupJob : BaseEntity
 {
     public string Name { get; set; } = default!;
     public bool Enabled { get; set; } = true;
 
-    public Guid SourceId { get; set; }
-    public Source Source { get; set; } = default!;
+    // The project this job backs up. JobSources is the chosen subset of that
+    // project's sources (defaults to all of them).
+    public Guid ProjectId { get; set; }
+    public Project Project { get; set; } = default!;
+
+    public ICollection<JobSource> JobSources { get; set; } = [];
 
     public Guid RemoteId { get; set; }
     public Remote Remote { get; set; } = default!;

@@ -3,23 +3,40 @@ import { HttpClient } from '@angular/common/http';
 import {
   AgentDto, BackupVersionDto, CommandKind, CreateB2Remote, CreateCustomRemote, CreateJob,
   CreateS3Remote, CreateSftpRemote, CreateSource, CreateWebDavRemote, JobDto,
-  NotificationSettingsDto, RemoteDto, RunDto, SettingsDto, SourceDto, StatsDto,
+  NotificationSettingsDto, ProjectDto, RemoteDetailDto, RemoteDto, RunDto, SettingsDto, SourceDto, StatsDto,
 } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class Api {
   private http = inject(HttpClient);
 
+  projects() { return this.http.get<ProjectDto[]>('/api/projects'); }
+  createProject(name: string) { return this.http.post<string>('/api/projects', { name }); }
+  updateProject(id: string, name: string) { return this.http.put<boolean>(`/api/projects/${id}`, { name }); }
+  deleteProject(id: string) { return this.http.delete<boolean>(`/api/projects/${id}`); }
+
   sources() { return this.http.get<SourceDto[]>('/api/sources'); }
   createSource(body: CreateSource) { return this.http.post<string>('/api/sources', body); }
+  updateSource(id: string, body: CreateSource) { return this.http.put<boolean>(`/api/sources/${id}`, body); }
   deleteSource(id: string) { return this.http.delete<boolean>(`/api/sources/${id}`); }
+  confirmSource(id: string) { return this.http.post<boolean>(`/api/sources/${id}/confirm`, {}); }
 
   remotes() { return this.http.get<RemoteDto[]>('/api/remotes'); }
+  remoteDetail(id: string) { return this.http.get<RemoteDetailDto>(`/api/remotes/${id}/detail`); }
   createS3(body: CreateS3Remote) { return this.http.post<string>('/api/remotes/s3', body); }
   createB2(body: CreateB2Remote) { return this.http.post<string>('/api/remotes/b2', body); }
   createSftp(body: CreateSftpRemote) { return this.http.post<string>('/api/remotes/sftp', body); }
   createWebDav(body: CreateWebDavRemote) { return this.http.post<string>('/api/remotes/webdav', body); }
   createCustom(body: CreateCustomRemote) { return this.http.post<string>('/api/remotes/custom', body); }
+  storeRcloneToken(body: { name: string; path: string; backend: string; token: string }) {
+    return this.http.post<string>('/api/remotes/rclone-token', body);
+  }
+  updateRemoteMeta(id: string, name: string, path: string) { return this.http.put<boolean>(`/api/remotes/${id}/meta`, { name, path }); }
+  updateS3(id: string, body: CreateS3Remote) { return this.http.put<boolean>(`/api/remotes/s3/${id}`, body); }
+  updateB2(id: string, body: CreateB2Remote) { return this.http.put<boolean>(`/api/remotes/b2/${id}`, body); }
+  updateSftp(id: string, body: CreateSftpRemote) { return this.http.put<boolean>(`/api/remotes/sftp/${id}`, body); }
+  updateWebDav(id: string, body: CreateWebDavRemote) { return this.http.put<boolean>(`/api/remotes/webdav/${id}`, body); }
+  updateCustom(id: string, body: CreateCustomRemote) { return this.http.put<boolean>(`/api/remotes/custom/${id}`, body); }
   deleteRemote(id: string) { return this.http.delete<boolean>(`/api/remotes/${id}`); }
   googleConnect(name: string, path: string) {
     const q = `name=${encodeURIComponent(name)}&path=${encodeURIComponent(path)}`;
@@ -55,16 +72,22 @@ export class Api {
   agents() { return this.http.get<AgentDto[]>('/api/agents'); }
   deleteAgent(id: string) { return this.http.delete<boolean>(`/api/agents/${id}`); }
   setAgentEnabled(id: string, enabled: boolean) { return this.http.put<boolean>(`/api/agents/${id}/enabled`, enabled); }
-  enqueue(agentId: string, kind: CommandKind, jobId: string | null = null) {
-    return this.http.post<string>(`/api/agents/${agentId}/enqueue`, { kind, jobId });
+  enqueue(agentId: string, kind: CommandKind, jobId: string | null = null, payload: string | null = null) {
+    return this.http.post<string>(`/api/agents/${agentId}/enqueue`, { kind, jobId, payload });
   }
 
   history(take = 100, skip = 0) { return this.http.get<RunDto[]>(`/api/history?take=${take}&skip=${skip}`); }
   stats() { return this.http.get<StatsDto>('/api/stats'); }
 
   versions(jobId: string) { return this.http.get<BackupVersionDto[]>(`/api/jobs/${jobId}/versions`); }
-  restore(jobId: string, fileName: string, snapshotFirst: boolean) {
-    return this.http.post<string>(`/api/jobs/${jobId}/restore`, { fileName, snapshotFirst });
+  // Restore a whole project version (every source together) or, for advanced use,
+  // a single archive file. Exactly one of version/fileName is sent.
+  restore(jobId: string, body: { version?: string; fileName?: string; snapshotFirst: boolean }) {
+    return this.http.post<string>(`/api/jobs/${jobId}/restore`, body);
+  }
+  drillVersion(jobId: string, fileName: string) { return this.http.post<string>(`/api/jobs/${jobId}/drill`, { fileName }); }
+  deleteArtifact(jobId: string, file: string) {
+    return this.http.delete<string>(`/api/jobs/${jobId}/artifact?file=${encodeURIComponent(file)}`);
   }
   deliver(jobId: string, fileName: string) { return this.http.post<string>(`/api/jobs/${jobId}/deliver`, { fileName }); }
   download(jobId: string, file: string) {

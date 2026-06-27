@@ -2,22 +2,33 @@ export enum BackupEngine { Postgres = 0, MySql = 1, Mssql = 2, Minio = 3 }
 export enum RemoteType { GoogleDrive = 0, S3 = 1, Custom = 2, B2 = 3, Sftp = 4, WebDav = 5, OneDrive = 6, Dropbox = 7, Yandex = 8 }
 export enum RunType { Backup = 0, Upload = 1, Cleanup = 2, Drill = 3, Restore = 4, Test = 5 }
 export enum RunStatus { Running = 0, Ok = 1, Fail = 2 }
-export enum CommandKind { RunBackup = 0, RunDrill = 1, RepullConfig = 2, RestoreVersion = 3, TestConnection = 4, DeliverArtifact = 5 }
+export enum CommandKind { RunBackup = 0, RunDrill = 1, RepullConfig = 2, RestoreVersion = 3, TestConnection = 4, DeliverArtifact = 5, TestSource = 6, TestRemote = 7, DiscoverSources = 8, DeleteArtifact = 9, ResetAgent = 10 }
 export enum ArtifactLocation { Local = 0, Remote = 1, Both = 2 }
+export enum DrillStatus { Untested = 0, Verified = 1, Failed = 2 }
+export enum SourceOrigin { Manual = 0, Discovered = 1, Adopted = 2 }
 
 export interface AuthResult { token: string; username: string; role: string; }
 export interface AuthUser { username: string; role: string; }
 
 export interface SourceDto {
-  id: string; name: string; engine: BackupEngine;
+  id: string; name: string; projectId: string; engine: BackupEngine;
   host: string; port: number; username: string; target: string;
+  origin: SourceOrigin; confirmed: boolean;
 }
 export interface CreateSource {
-  name: string; engine: BackupEngine; host: string; port: number;
+  projectId: string; name: string; engine: BackupEngine; host: string; port: number;
   username: string; secret: string; target: string;
 }
 
+export interface ProjectDto { id: string; name: string; sources: SourceDto[]; }
+
 export interface RemoteDto { id: string; name: string; type: RemoteType; path: string; }
+export interface RemoteDetailDto {
+  id: string; name: string; type: RemoteType; path: string;
+  endpoint: string | null; region: string | null; account: string | null;
+  host: string | null; port: number | null; username: string | null;
+  url: string | null; vendor: string | null; keyFile: string | null;
+}
 export interface CreateS3Remote {
   name: string; path: string; endpoint: string;
   accessKey: string; secretKey: string; region: string | null;
@@ -25,7 +36,7 @@ export interface CreateS3Remote {
 export interface CreateB2Remote { name: string; path: string; account: string; key: string; }
 export interface CreateSftpRemote {
   name: string; path: string; host: string; port: number;
-  username: string; password: string | null; keyFile: string | null;
+  username: string; password: string | null; keyFile: string | null; keyPem: string | null;
 }
 export interface CreateWebDavRemote {
   name: string; path: string; url: string; vendor: string;
@@ -35,7 +46,8 @@ export interface CreateCustomRemote { name: string; path: string; rcloneConfig: 
 
 export interface JobDto {
   id: string; name: string; enabled: boolean;
-  sourceId: string; sourceName: string;
+  projectId: string; projectName: string;
+  sourceIds: string[]; sourceNames: string[];
   remoteId: string; remoteName: string;
   agentId: string | null;
   backupSchedule: string; uploadSchedule: string | null;
@@ -44,7 +56,7 @@ export interface JobDto {
   maxRemoteBackups: number; compressionLevel: number;
 }
 export interface CreateJob {
-  name: string; sourceId: string; remoteId: string; agentId: string | null;
+  name: string; projectId: string; sourceIds: string[]; remoteId: string; agentId: string | null;
   backupSchedule: string; uploadSchedule: string | null;
   cleanupSchedule: string | null; drillSchedule: string | null;
   minLocalBackups: number; maxLocalBackups: number;
@@ -67,6 +79,8 @@ export interface RunBroadcast extends RunDto {
   project: string; driver: string;
 }
 
+export interface TestResult { target: string; targetId: string; ok: boolean; message: string; }
+
 export interface StatsDto {
   agents: number; jobs: number;
   ok24h: number; fail24h: number;
@@ -79,6 +93,8 @@ export interface StatsDto {
 export interface BackupVersionDto {
   id: string; fileName: string; driver: string;
   bytes: number; archivedAt: string; location: ArtifactLocation;
+  drillStatus: DrillStatus; drilledAt: string | null;
+  drillTables: number | null; drillRows: number | null;
 }
 
 export interface SettingsDto { googleConfigured: boolean; oneDriveConfigured: boolean; dropboxConfigured: boolean; yandexConfigured: boolean; }

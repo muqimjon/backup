@@ -12,7 +12,7 @@ internal sealed class DeleteSourceHandler(IAppDbContext db)
 {
     public async ValueTask<bool> Handle(DeleteSourceCommand command, CancellationToken ct)
     {
-        if (await db.Jobs.AnyAsync(j => j.SourceId == command.Id, ct))
+        if (await db.JobSources.AnyAsync(js => js.SourceId == command.Id, ct))
             throw new ConflictException("This source is used by a job — delete the job first.");
 
         var source = await db.Sources.FirstOrDefaultAsync(s => s.Id == command.Id, ct);
