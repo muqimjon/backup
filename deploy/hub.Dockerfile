@@ -5,7 +5,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Stage 1 — build the Angular SPA
-FROM node:24-alpine AS web
+# Built on the BUILD host's arch (never emulated) — the output is just static JS,
+# identical for every target platform.
+FROM --platform=$BUILDPLATFORM node:24-alpine AS web
 WORKDIR /web
 COPY web/package*.json ./
 RUN npm ci
@@ -13,7 +15,10 @@ COPY web/ ./
 RUN npm run build
 
 # Stage 2 — build & publish the .NET API (with the SPA embedded as wwwroot)
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS api
+# Also built natively: the publish output is portable IL (no RID), so one build
+# serves every target. The arch-specific runtime comes from the final base image,
+# and SQLite's native libs for all arches ship in the portable runtimes/ folder.
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS api
 WORKDIR /src
 # Restore using only the project files first — this layer stays cached across
 # source-only changes, so rebuilds skip the slow package restore.
