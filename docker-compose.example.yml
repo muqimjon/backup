@@ -15,7 +15,7 @@
 services:
 
   backup:
-    image: muqimjon/backup:postgres
+    image: muqimjon/zaxira
     restart: always
     environment:
       # ── Database ────────────────────────────────
@@ -41,7 +41,7 @@ services:
 # ══════════════════════════════════════════════════════════════════════════════
 
   backup-full:
-    image: muqimjon/backup:postgres
+    image: muqimjon/zaxira
     restart: always
     environment:
       # ── Project ─────────────────────────────────
@@ -120,7 +120,7 @@ services:
 # becomes hub-managed. Configure once here, manage from the hub.
 
   backup-combined:
-    image: muqimjon/backup:postgres-minio
+    image: muqimjon/zaxira
     restart: always
     environment:
       PROJECT_NAME: myapp

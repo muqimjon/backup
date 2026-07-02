@@ -4,7 +4,7 @@ You don't need the web hub running to make backups. The **same agent image** wor
 decided at startup by whether `HUB_URL`/`HUB_TOKEN` and a local `.env` config are present:
 
 - **No `HUB_URL`** → standalone mode: the agent reads everything from **`.env`** and runs on its
-  own cron (exactly like the classic `muqimjon/backup:*` images). No hub, no extra cost.
+  own cron. No hub, no extra cost.
 - **`HUB_URL` set, no local `.env`** → hub mode: the agent is managed entirely from the web UI.
 - **`HUB_URL` set *and* a local `.env` config (`BACKUP_DRIVER` set)** → **hybrid mode**: the agent
   prefers the hub, but falls back to its local `.env` config whenever the hub is unreachable, the
@@ -13,8 +13,8 @@ decided at startup by whether `HUB_URL`/`HUB_TOKEN` and a local `.env` config ar
   running that job across restarts and even after the hub is turned off again. Configure once via
   the hub, shut the hub down, and the agent carries on.
 
-> Prefer a smaller image? The single-source images `muqimjon/backup:postgres` · `:mysql` ·
-> `:minio` · `:postgres-minio` are leaner (one client each) and run env-only too.
+> One image, every engine: `muqimjon/zaxira` bundles all clients (postgres, mysql, minio) and
+> picks the right one from `BACKUP_DRIVER` — standalone or hub-managed, same image.
 
 ## Quick start (docker run)
 

@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# backuphub/agent — generic, web-driven agent.
-# Pulls its job list from the BackupHub control plane and runs every job
+# zaxira/agent — generic, web-driven agent.
+# Pulls its job list from the Zaxira hub and runs every job
 # (postgres / mysql / minio-S3) on the schedule defined in the web UI.
 # Tools: pg_dump • mysqldump • mc • rclone • jq • supercronic
 #

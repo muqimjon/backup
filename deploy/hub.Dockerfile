@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# backuphub — control plane (Angular UI served by the .NET 10 API, one image).
+# zaxira-hub — control plane (Angular UI served by the .NET 10 API, one image).
 # Build (from repo root):
 #   docker build -f deploy/hub.Dockerfile -t muqimjon/zaxira-hub .
 # ─────────────────────────────────────────────────────────────────────────────

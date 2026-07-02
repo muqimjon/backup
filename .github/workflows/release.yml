@@ -1,7 +1,7 @@
 name: release
 
-# Builds & pushes every image on a release tag (created by release-please),
-# multi-arch, tagged with the version and a moving alias (:latest / :<variant>).
+# Builds & pushes the zaxira agent + hub images on a release tag (created by
+# release-please), multi-arch, tagged with the version and :latest.
 # Manual runs: provide a version like 1.2.3.
 
 on:
@@ -36,13 +36,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { file: workers/images/postgres/Dockerfile,       repo: muqimjon/backup,          variant: postgres,       platforms: "linux/amd64,linux/arm64" }
-          - { file: workers/images/mysql/Dockerfile,          repo: muqimjon/backup,          variant: mysql,          platforms: "linux/amd64,linux/arm64" }
-          - { file: workers/images/minio/Dockerfile,          repo: muqimjon/backup,          variant: minio,          platforms: "linux/amd64,linux/arm64" }
-          - { file: workers/images/postgres-minio/Dockerfile, repo: muqimjon/backup,          variant: postgres-minio, platforms: "linux/amd64,linux/arm64" }
-          - { file: workers/images/mssql/Dockerfile,          repo: muqimjon/backup,          variant: mssql,          platforms: "linux/amd64" }
-          - { file: workers/images/agent/Dockerfile,          repo: muqimjon/zaxira, variant: "",             platforms: "linux/amd64,linux/arm64" }
-          - { file: deploy/hub.Dockerfile,                    repo: muqimjon/zaxira-hub,       variant: "",             platforms: "linux/amd64,linux/arm64" }
+          - { file: workers/images/agent/Dockerfile, repo: muqimjon/zaxira,     platforms: "linux/amd64,linux/arm64" }
+          - { file: deploy/hub.Dockerfile,           repo: muqimjon/zaxira-hub, platforms: "linux/amd64,linux/arm64" }
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
@@ -56,17 +51,11 @@ jobs:
         env:
           VERSION: ${{ needs.version.outputs.version }}
           REPO: ${{ matrix.repo }}
-          VARIANT: ${{ matrix.variant }}
         run: |
           {
             echo "tags<<EOF"
-            if [ -n "$VARIANT" ]; then
-              echo "${REPO}:${VARIANT}"
-              echo "${REPO}:${VARIANT}-${VERSION}"
-            else
-              echo "${REPO}:latest"
-              echo "${REPO}:${VERSION}"
-            fi
+            echo "${REPO}:latest"
+            echo "${REPO}:${VERSION}"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -81,11 +70,14 @@ jobs:
   readme:
     needs: images
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repository: [muqimjon/zaxira, muqimjon/zaxira-hub]
     steps:
       - uses: actions/checkout@v4
       - uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: muqimjon/backup
+          repository: ${{ matrix.repository }}
           readme-filepath: ./README.md

@@ -11,8 +11,8 @@ New here? Start with the **[5-minute walkthrough in the README](../../README.md#
 > it and lists them in the UI as *review* sources — confirm them instead of typing each by hand.
 
 ## No hub? Run standalone
-- [Run backups without the hub (.env mode)](standalone.md) — the agent (or the lean
-  `muqimjon/backup:*` images) backs up from `.env` on its own cron, no web hub required.
+- [Run backups without the hub (.env mode)](standalone.md) — the `muqimjon/zaxira` agent
+  backs up from `.env` on its own cron, no web hub required.
 
 ## Notifications
 - [Email (SMTP)](notifications-email.md) — get an SMTP host/user/app-password

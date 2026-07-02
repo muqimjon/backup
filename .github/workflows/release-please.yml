@@ -1,11 +1,11 @@
 name: release-please
 
-# Conventional Commits → version bump. Merging to main opens/updates a release PR;
-# merging that PR tags a release (vX.Y.Z), which triggers release.yml to build images.
+# Conventional Commits → version bump. Runs only when triggered manually
+# (Actions → release-please → Run workflow); opens/updates a release PR whose
+# merge tags a release (vX.Y.Z), which triggers release.yml to build images.
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
